@@ -1,0 +1,25 @@
+# Qt / build
+build/
+build-*/
+*.pro.user
+*.pro.user.*
+
+# Executables / binaries
+*.exe
+*.dll
+*.o
+*.obj
+*.a
+*.lib
+
+# Word temporary files
+~$*
+
+# Temporary files
+*.tmp
+*.log
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake

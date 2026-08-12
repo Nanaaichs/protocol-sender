@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/data">
+        <file alias="sample_protocol.xml">../data/sample_protocol.xml</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,18 @@
+Local Git evidence for CITEL-T-007
+Branch: codex/complete-t007-delivery
+Author identity: Codex Course Workspace <codex-local@example.invalid>
+
+Baseline:
+07bd6e7 Make the course workspace reproducible before adding project submissions
+
+Project implementation sequence:
+beec07e Reject ambiguous protocol data before transmission
+6b26702 Keep UI progress aligned with delivered and logged datagrams
+2c762ac Measure loopback delivery instead of socket submissions
+4e74703 Make the Qt delivery reproducible on the installed toolchain
+
+The repository has no configured remote. These are local, AI-transparent records;
+they do not represent a course-platform submission or a student-only authorship claim.
+
+Refresh this snapshot with:
+git log --oneline --decorate -- .

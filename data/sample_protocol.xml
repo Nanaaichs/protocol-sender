@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="LoopbackDemo">
+  <field name="device_id" type="UINT16" dataType="UINT16" min="1" max="1024" isSelected="true" isKey="true" bitIndex="-1" loopEnd="false" />
+  <field name="flags" type="UINT8" dataType="UINT8" min="0" max="255" data="13" bitIndex="2" isSelected="true" isKey="false" loopEnd="false" />
+  <field name="temperature" type="FLT" dataType="FLT" min="18.5" max="32.5" isSelected="true" isKey="false" loopEnd="false" />
+  <field name="mode" type="STRING" dataType="STRING" data="MODE-${value}" length="4" isSelected="true" isKey="false" loopEnd="true" />
+  <field name="trace" type="STRING" dataType="STRING" data="TRACE-${timestamp}" length="8" isSelected="false" isKey="false" loopEnd="false" />
+  <field name="checksum" type="HEX" dataType="HEX" min="0" max="65535" isSelected="true" isKey="false" loopEnd="false" />
+</protocol>
