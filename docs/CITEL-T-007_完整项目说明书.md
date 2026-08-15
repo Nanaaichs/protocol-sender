@@ -351,7 +351,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 | --- | --- | --- |
 | `name` | 无 | 必填，作为载荷中的键名 |
 | `type` | 参考 `dataType` | 字段声明类型，程序会转换为大写 |
-| `dataType` | `type` | 实际生成类型，必须属于支持的 15 类 |
+| `dataType` | `type` | 实际生成类型，必须属于支持的兼容集 |
 | `min` | `0` | 数值下界，必须是数字且不大于 `max` |
 | `max` | `100` | 数值上界，必须是数字 |
 | `length` | `8` | 字符串长度，必须为正整数 |
@@ -363,7 +363,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 
 布尔值可写 `1`、`true`、`yes` 表示真；其他非空文本会按假处理。建议统一使用 `true` 或 `false`。
 
-## 7.4 支持的 15 类数据
+## 7.4 支持的数据类型
 
 | 类型 | 输出形式 | 说明 |
 | --- | --- | --- |
@@ -382,8 +382,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 | `INT16` | -32768 到 32767 | 先把配置范围限制在类型范围内 |
 | `UINT16` | 0 到 65535 | 先把配置范围限制在类型范围内 |
 | `UINT32` | 0 到 4294967295 | 先把配置范围限制在类型范围内 |
+| `IP` | IPv4 地址 | 课程样例要求；按 IPv4 数值范围随机生成 |
 
-必须核对：上述 15 类是当前项目采用的口径。仓库没有老师提供的完整原始清单，提交前必须与老师题面逐项比对。
+题面要求 15 类，课程实际样例又使用了 `IP`。为了向后兼容，项目不删除原有类型，当前可接受的兼容集共 16 类。
 
 ## 7.5 data：固定值与模板
 
@@ -441,6 +442,12 @@ first=1 || second=MODE-A7Q2;checksum=FF03
 - XML 标签没有闭合或引号不匹配。
 
 程序会在加载阶段拒绝这些协议并显示具体原因。
+
+## 7.8 课程子元素格式
+
+老师提供的两个协议样例不把字段数据写成 XML 属性，而是使用 `fieldName`、`datatype`、`minimum`、`maximum` 等子元素。该格式中 `bitIndex`、`length`、`loopEnd` 分别表示起始位、位长和结束位，程序会按位布局生成二进制 UDP 报文。
+
+完整字段映射、字节序假设、两个样例的预期字节数以及 Packet Sender 验收步骤见 `docs/COURSE_PROTOCOL_COMPATIBILITY.md`。
 
 ---
 

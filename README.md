@@ -4,8 +4,10 @@
 
 ## 已实现功能
 
-- 加载并校验自定义 XML 协议；
-- 随机生成 15 类字段；
+- 加载并校验旧属性式 XML 与课程子元素式 XML；
+- 解析课程协议的源/目地址、端口、系统和字段位布局；
+- 随机生成题面字段，并额外兼容课程样例中的 `IP`；
+- 课程格式按 bit 布局生成真正二进制 UDP 报文；
 - 配置 1–1000 Hz 常规发送频率、发送数量、目标 IP 和端口；
 - 发送数量留空时持续发送，直到用户停止；
 - UDP 写入或 SQLite 日志失败时停止任务并显示原因；
@@ -13,11 +15,11 @@
 - 按时间、协议、IP 组合查询 SQLite 日志；
 - 使用真实 localhost 接收端执行 loopback 基准，报告发送、接收、异常报文、吞吐和丢包率。
 
-## 支持的数据类型（项目当前口径）
+## 支持的数据类型（兼容集）
 
-`DEC`、`INT`、`UINT`、`BIN`、`OCT`、`HEX`、`FLT`、`DBL`、`STRING`、`FLAG`、`INT8`、`UINT8`、`INT16`、`UINT16`、`UINT32`。
+`DEC`、`INT`、`UINT`、`BIN`、`OCT`、`HEX`、`FLT`、`DBL`、`STRING`、`FLAG`、`INT8`、`UINT8`、`INT16`、`UINT16`、`UINT32`、`IP`。
 
-仓库中的题面整理稿只显式列出其中 9 类，因此提交课程平台前仍应使用老师提供的原始题面核对完整 15 类清单。
+题面要求 15 类；为不破坏旧文件，项目保留原有 15 类，并增加课程样例实际使用的 `IP`，因此兼容集共 16 类。详见 [`docs/COURSE_PROTOCOL_COMPATIBILITY.md`](docs/COURSE_PROTOCOL_COMPATIBILITY.md)。
 
 ## 一键构建、测试和打包
 
@@ -46,7 +48,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 .\dist\protocol_sender.exe
 ```
 
-示例协议已嵌入应用，也可以加载 [`data/sample_protocol.xml`](data/sample_protocol.xml)。SQLite 数据库保存在当前用户的标准应用数据目录，而不是 exe 相邻目录。
+示例协议已嵌入应用；可以加载 [`data/sample_protocol.xml`](data/sample_protocol.xml)，也可以直接选择两个课程协议样例。SQLite 数据库保存在当前用户的标准应用数据目录，而不是 exe 相邻目录。
 
 ## 当前验证结果
 

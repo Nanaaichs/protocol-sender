@@ -177,8 +177,9 @@ LoopbackBenchmarkResult UdpSendController::runLoopbackBenchmark(const ProtocolDe
     QSet<int> receivedSequences;
     timer.start();
     for (int i = 0; i < messageCount; ++i) {
+        const GeneratedPayload generated = m_generator.generate(definition);
         const QByteArray payload = QByteArray("BENCH:") + QByteArray::number(i) + '|'
-            + m_generator.generatePayload(definition).toUtf8();
+            + generated.datagram;
         const qint64 written = sender.writeDatagram(
             payload, QHostAddress(QHostAddress::LocalHost), receiver.localPort());
         if (written != payload.size()) {
@@ -218,8 +219,9 @@ void UdpSendController::sendOnce()
         failRun(QString::fromUtf8("协议定义为空"));
         return;
     }
-    const QString payloadText = m_generator.generatePayload(m_definition);
-    const QByteArray payload = payloadText.toUtf8();
+    const GeneratedPayload generated = m_generator.generate(m_definition);
+    const QString payloadText = generated.displayText;
+    const QByteArray payload = generated.datagram;
     const qint64 written = m_socket.writeDatagram(payload, QHostAddress(m_ip), m_port);
     if (written != payload.size()) {
         failRun(QString::fromUtf8("UDP 写入失败：%1").arg(m_socket.errorString()));

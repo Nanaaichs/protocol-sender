@@ -38,13 +38,17 @@ class ProtocolSenderTests : public QObject
 
 private slots:
     void parseProtocol();
+    void parseCourseProtocolExamples();
+    void rejectInvalidPackedLayout();
     void rejectInvalidProtocol();
     void generateAllSupportedTypes();
+    void generatePackedCourseDatagrams();
     void generatePayloadGroups();
     void literalDataSupportsBitExtraction();
     void repositoryQuery();
     void controllerRejectsInvalidParameters();
     void controllerSendsAndLogs();
+    void controllerSendsPackedCourseDatagram();
     void controllerStopsContinuousRun();
     void loopbackBenchmarkDeliversDatagrams();
 };
@@ -67,6 +71,55 @@ void ProtocolSenderTests::parseProtocol()
     QVERIFY(parser.definition().fields.first().loopEnd);
 }
 
+void ProtocolSenderTests::parseCourseProtocolExamples()
+{
+    ProtocolParser parser;
+    QVERIFY2(parser.load(":/data/course_protocol_example_1.xml"), qPrintable(parser.lastError()));
+    ProtocolDefinition first = parser.definition();
+    QVERIFY(first.packedBitLayout);
+    QCOMPARE(first.sourceIp, QString("192.168.0.1"));
+    QCOMPARE(first.destinationIp, QString("192.168.0.2"));
+    QCOMPARE(first.sourcePort, 1000);
+    QCOMPARE(first.destinationPort, 2000);
+    QCOMPARE(first.messageType, 0);
+    QCOMPARE(first.system, QString::fromUtf8("未知系统"));
+    QCOMPARE(first.fields.size(), 2);
+    QCOMPARE(first.fields.at(0).name, QString("field_1"));
+    QCOMPARE(first.fields.at(0).dataType, QString("HEX"));
+    QCOMPARE(first.fields.at(0).bitIndex, 0);
+    QCOMPARE(first.fields.at(0).length, 16);
+    QCOMPARE(first.fields.at(0).endBit, 16);
+    QCOMPARE(first.fields.at(1).minimum, QString("0000"));
+    QCOMPARE(first.fields.at(1).maximum, QString("1FFF"));
+
+    QVERIFY2(parser.load(":/data/course_protocol_example_2.xml"), qPrintable(parser.lastError()));
+    ProtocolDefinition second = parser.definition();
+    QVERIFY(second.packedBitLayout);
+    QCOMPARE(second.fields.size(), 5);
+    QCOMPARE(second.fields.at(1).dataType, QString("BIN"));
+    QCOMPARE(second.fields.at(2).dataType, QString("STRING"));
+    QCOMPARE(second.fields.at(3).dataType, QString("IP"));
+    QCOMPARE(second.fields.at(3).bitIndex, 56);
+    QCOMPARE(second.fields.at(3).endBit, 88);
+    QCOMPARE(second.fields.at(4).dataType, QString("FLAG"));
+    QCOMPARE(second.fields.at(4).endBit, 96);
+}
+
+void ProtocolSenderTests::rejectInvalidPackedLayout()
+{
+    const QString xmlPath = QDir::temp().absoluteFilePath("citel_t007_invalid_layout.xml");
+    QFile file(xmlPath);
+    QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+    file.write("<protocol><field><fieldName>a</fieldName><datatype>HEX</datatype>"
+               "<bitIndex>0</bitIndex><length>16</length><loopEnd>15</loopEnd>"
+               "<minimum>0</minimum><maximum>FFFF</maximum></field></protocol>");
+    file.close();
+
+    ProtocolParser parser;
+    QVERIFY(!parser.load(xmlPath));
+    QVERIFY(parser.lastError().contains("loopEnd"));
+}
+
 void ProtocolSenderTests::rejectInvalidProtocol()
 {
     const QString xmlPath = QDir::temp().absoluteFilePath("citel_t007_invalid_protocol.xml");
@@ -84,7 +137,8 @@ void ProtocolSenderTests::generateAllSupportedTypes()
 {
     DataGenerator generator;
     const QStringList types = generator.supportedTypes();
-    QCOMPARE(types.size(), 15);
+    QVERIFY(types.size() >= 15);
+    QVERIFY(types.contains("IP"));
 
     for (int i = 0; i < types.size(); ++i) {
         ProtocolDefinition definition;
@@ -108,6 +162,9 @@ void ProtocolSenderTests::generateAllSupportedTypes()
         bool ok = false;
         if (types.at(i) == "STRING") {
             QCOMPARE(value.size(), 6);
+        } else if (types.at(i) == "IP") {
+            QHostAddress address;
+            QVERIFY(address.setAddress(value));
         } else if (types.at(i) == "BIN") {
             value.toULongLong(&ok, 2);
             QVERIFY(ok);
@@ -128,6 +185,34 @@ void ProtocolSenderTests::generateAllSupportedTypes()
             QVERIFY(number >= 1 && number <= 9);
         }
     }
+}
+
+void ProtocolSenderTests::generatePackedCourseDatagrams()
+{
+    ProtocolParser parser;
+    DataGenerator generator;
+
+    QVERIFY2(parser.load(":/data/course_protocol_example_1.xml"), qPrintable(parser.lastError()));
+    GeneratedPayload first = generator.generate(parser.definition());
+    QCOMPARE(first.datagram.size(), 4);
+    QCOMPARE(first.datagram.left(2), QByteArray::fromHex("1234"));
+    const quint16 secondHex = (static_cast<quint8>(first.datagram.at(2)) << 8)
+        | static_cast<quint8>(first.datagram.at(3));
+    QVERIFY(secondHex <= 0x1FFF);
+    QVERIFY(first.displayText.startsWith("HEX: 12 34"));
+
+    QVERIFY2(parser.load(":/data/course_protocol_example_2.xml"), qPrintable(parser.lastError()));
+    GeneratedPayload second = generator.generate(parser.definition());
+    QCOMPARE(second.datagram.size(), 12);
+    QCOMPARE(second.datagram.left(2), QByteArray::fromHex("1234"));
+    QVERIFY(static_cast<quint8>(second.datagram.at(2)) <= 0x40);
+    const quint32 ip = (static_cast<quint32>(static_cast<quint8>(second.datagram.at(7))) << 24)
+        | (static_cast<quint32>(static_cast<quint8>(second.datagram.at(8))) << 16)
+        | (static_cast<quint32>(static_cast<quint8>(second.datagram.at(9))) << 8)
+        | static_cast<quint8>(second.datagram.at(10));
+    QVERIFY(ip >= 0x7F000002u);
+    QVERIFY(ip <= 0x7FFEFEFFu);
+    QVERIFY(second.displayText.startsWith("HEX: 12 34"));
 }
 
 void ProtocolSenderTests::generatePayloadGroups()
@@ -263,6 +348,35 @@ void ProtocolSenderTests::controllerSendsAndLogs()
     }
     QCOMPARE(received, 3);
     QCOMPARE(repository.search(QString(), "ControllerDemo", "127.0.0.1").size(), 3);
+}
+
+void ProtocolSenderTests::controllerSendsPackedCourseDatagram()
+{
+    ProtocolParser parser;
+    QVERIFY2(parser.load(":/data/course_protocol_example_1.xml"), qPrintable(parser.lastError()));
+
+    const QString dbPath = QDir::temp().absoluteFilePath("citel_t007_packed_controller.db");
+    QFile::remove(dbPath);
+    TransmissionRepository repository(dbPath, "protocol_sender_packed_controller_repo");
+    UdpSendController controller(&repository);
+    controller.setProtocol(parser.definition());
+
+    QUdpSocket receiver;
+    QVERIFY(receiver.bind(QHostAddress(QHostAddress::LocalHost), static_cast<quint16>(0)));
+    QSignalSpy finished(&controller, SIGNAL(runFinished(QString)));
+    QSignalSpy generated(&controller, SIGNAL(messageGenerated(QString)));
+
+    QVERIFY(controller.start("127.0.0.1", receiver.localPort(), 10, 1));
+    QTRY_COMPARE(finished.count(), 1);
+    QTRY_VERIFY(receiver.hasPendingDatagrams());
+
+    QByteArray datagram;
+    datagram.resize(static_cast<int>(receiver.pendingDatagramSize()));
+    QCOMPARE(receiver.readDatagram(datagram.data(), datagram.size()), static_cast<qint64>(4));
+    QCOMPARE(datagram.left(2), QByteArray::fromHex("1234"));
+    QCOMPARE(generated.count(), 1);
+    QVERIFY(generated.first().first().toString().startsWith("HEX: 12 34"));
+    QCOMPARE(repository.search(QString(), parser.definition().name, "127.0.0.1").size(), 1);
 }
 
 void ProtocolSenderTests::controllerStopsContinuousRun()

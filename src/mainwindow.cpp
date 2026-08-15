@@ -180,13 +180,13 @@ void MainWindow::browseProtocol()
     // 初始目录，这里 QString() 表示使用默认目录。
     //
     // 参数4：
-    // 文件过滤器，只显示 XML 文件。
+    // 课程样例可能没有 .xml 扩展名，因此同时允许选择所有文件。
     const QString filePath =
         QFileDialog::getOpenFileName(
             this,
             QString::fromUtf8("选择协议 XML"),
             QString(),
-            "XML (*.xml)");
+            QString::fromUtf8("协议文件 (*.xml);;所有文件 (*)"));
 
     // 如果用户点击“取消”，filePath 会为空。
     //
@@ -198,7 +198,20 @@ void MainWindow::browseProtocol()
         m_protocolPathEdit->setText(filePath);
 
         // 加载并解析新协议。
-        loadProtocol(filePath);
+        if (loadProtocol(filePath))
+        {
+            // 课程协议在 XML 中提供默认目标地址和端口。
+            // 仅在用户选择文件时应用；开始发送前的重载不覆盖用户后续手工修改。
+            const ProtocolDefinition definition = m_parser.definition();
+            if (!definition.destinationIp.isEmpty())
+            {
+                m_ipEdit->setText(definition.destinationIp);
+            }
+            if (definition.destinationPort > 0)
+            {
+                m_portEdit->setText(QString::number(definition.destinationPort));
+            }
+        }
     }
 }
 

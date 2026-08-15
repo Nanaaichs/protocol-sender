@@ -16,3 +16,5 @@ HEADERS += \
     ../src/protocolparser.h \
     ../src/transmissionrepository.h \
     ../src/udpsendcontroller.h
+
+RESOURCES += ../src/resources.qrc
