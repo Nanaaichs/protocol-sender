@@ -28,7 +28,7 @@ C:\Qt\Qt5.9.7\Tools\mingw530_32\bin\mingw32-make.exe
 
 成功标准：
 
-- QtTest 末尾显示 `12 passed, 0 failed`；
+- QtTest 末尾显示 `16 passed, 0 failed`；
 - 2000 条 loopback 测试中，发送数和接收数均为 2000，异常报文为 0、丢包率为 0.00%；
 - 输出 `Package ready:` 和 `Build and tests completed successfully.`；
 - 打包程序的 `--smoke-test` 返回退出码 0。
@@ -70,7 +70,7 @@ C:\Qt\Qt5.9.7\Tools\mingw530_32\bin\mingw32-make.exe
 1. `requirements\original-statement.md`：了解题目目标及仍需向老师核对的原始要求。
 2. `data\sample_protocol.xml`：观察协议名、字段类型、范围、固定值、模板、位提取和分组属性。
 3. `src\protocolparser.h/.cpp`：XML 如何变成 `ProtocolDefinition`，以及非法结构怎样被拒绝。
-4. `src\datagenerator.h/.cpp`：15 类数据怎样生成，`${value}` 等模板怎样替换，`loopEnd` 怎样形成分组。
+4. `src\datagenerator.h/.cpp`：原有 15 类与课程 `IP` 类型怎样生成，旧格式如何替换模板，课程格式如何按 bit 布局打包。
 5. `src\transmissionrepository.h/.cpp`：SQLite 表初始化、写入和组合查询。
 6. `src\udpsendcontroller.h/.cpp`：参数校验、定时调度、UDP 发送、失败停止、loopback 接收统计。
 7. `src\mainwindow.h/.cpp`：界面事件如何调用上述模块，以及进度、预览、检索和错误提示如何呈现。

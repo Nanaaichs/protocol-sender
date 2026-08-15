@@ -118,6 +118,28 @@ void ProtocolSenderTests::rejectInvalidPackedLayout()
     ProtocolParser parser;
     QVERIFY(!parser.load(xmlPath));
     QVERIFY(parser.lastError().contains("loopEnd"));
+
+    QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text));
+    file.write("<protocol><field><fieldName>wide</fieldName><datatype>HEX</datatype>"
+               "<bitIndex>0</bitIndex><length>65</length><loopEnd>65</loopEnd>"
+               "<minimum>0</minimum><maximum>FFFFFFFFFFFFFFFF</maximum></field></protocol>");
+    file.close();
+    QVERIFY(!parser.load(xmlPath));
+    QVERIFY(parser.lastError().contains("64 bit"));
+
+    QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text));
+    file.write("<protocol>"
+               "<field><fieldName>second_byte</fieldName><datatype>HEX</datatype><data>AA</data>"
+               "<bitIndex>8</bitIndex><length>8</length><loopEnd>16</loopEnd>"
+               "<minimum>AA</minimum><maximum>AA</maximum></field>"
+               "<field><fieldName>first_byte</fieldName><datatype>HEX</datatype><data>BB</data>"
+               "<bitIndex>0</bitIndex><length>8</length><loopEnd>8</loopEnd>"
+               "<minimum>BB</minimum><maximum>BB</maximum></field>"
+               "</protocol>");
+    file.close();
+    QVERIFY2(parser.load(xmlPath), qPrintable(parser.lastError()));
+    DataGenerator generator;
+    QCOMPARE(generator.generate(parser.definition()).datagram, QByteArray::fromHex("BBAA"));
 }
 
 void ProtocolSenderTests::rejectInvalidProtocol()

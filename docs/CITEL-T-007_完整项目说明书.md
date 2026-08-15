@@ -47,7 +47,7 @@
 | 编号 | 要求 | 当前实现 |
 | --- | --- | --- |
 | R1 | 读取自定义 XML 协议 | 已完成，且会拒绝结构或属性非法的 XML |
-| R2 | 支持 15 类字段 | 已完成当前口径的 15 类，最终仍需用老师原题核对清单 |
+| R2 | 支持 15 类字段 | 已保留原有 15 类，并兼容课程样例中的 `IP`；最终仍需用老师原题核对清单 |
 | R3 | 随机生成字段值 | 已完成，支持范围、长度、模板、固定值和位提取 |
 | R4 | 配置频率、数量、IP、端口 | 已完成，常规频率范围为 1–1000 Hz |
 | R5 | 数量为空时持续发送 | 已完成，用户点击“停止发送”结束 |
@@ -58,13 +58,13 @@
 
 ## 1.4 当前已经验证的结果
 
-- QtTest：12 passed，0 failed，0 skipped；
+- QtTest：16 passed，0 failed，0 skipped；
 - loopback：请求 2000 条，写入 2000 条，接收 2000 条，异常 0 条，丢包率 0.00%；
 - `windeployqt` 打包成功；
 - 打包后的程序通过 `--smoke-test`，退出码为 0；
 - 生成的 `dist` 包含 Qt 平台插件、SQLite 驱动和 MinGW 运行库。
 
-性能数字会随机器负载变化。报告中的一次干净样本约为 75,217 Hz，后续复跑也可能出现约 60,000–85,000 Hz。验收时首先关注“发送数、接收数、异常数和丢包率”，不要把一次吞吐结果宣传为所有机器都能达到的保证值。
+性能数字会随机器负载变化。本轮多次样本约为 37,500–75,340 Hz，均为发送 2000、接收 2000、异常 0、丢包 0.00%。验收时首先关注“发送数、接收数、异常数和丢包率”，不要把一次吞吐结果宣传为所有机器都能达到的保证值。
 
 ---
 
@@ -225,7 +225,7 @@ Qt 5.9 的 `windeployqt` 对中文路径处理不稳定，因此脚本先在纯�
 输出中应出现：
 
 ```text
-Totals: 12 passed, 0 failed, 0 skipped
+Totals: 16 passed, 0 failed, 0 skipped
 Package ready: ...\CITEL-T-007\dist
 Build and tests completed successfully.
 ```
@@ -480,7 +480,7 @@ DataGenerator
 | --- | --- | --- |
 | 程序入口 | `src/main.cpp` | 建立 Qt 应用；支持正常 GUI 和 `--smoke-test` |
 | 协议解析 | `src/protocolparser.*` | 读取 XML、设置默认值、校验属性、形成协议对象 |
-| 数据生成 | `src/datagenerator.*` | 实现 15 类字段、固定值、模板、位提取和分组 |
+| 数据生成 | `src/datagenerator.*` | 实现 16 类兼容集、旧文本载荷与课程二进制位打包 |
 | 日志仓储 | `src/transmissionrepository.*` | 建表、插入、按时间/协议/IP 查询 |
 | 发送控制 | `src/udpsendcontroller.*` | 参数校验、定时发送、错误停止、loopback 基准 |
 | 图形界面 | `src/mainwindow.*` | 收集输入、调用模块、显示反馈 |
@@ -528,7 +528,7 @@ DataGenerator
 | --- | --- |
 | `parseProtocol` | 合法 XML 和主要属性能被正确解析 |
 | `rejectInvalidProtocol` | 未知数据类型会被拒绝 |
-| `generateAllSupportedTypes` | 15 类数据都能生成且格式可解析 |
+| `generateAllSupportedTypes` | 16 类兼容集都能生成且格式可解析 |
 | `generatePayloadGroups` | 选择、模板和 `loopEnd` 分组正确 |
 | `literalDataSupportsBitExtraction` | 固定整数数据可以先固定再提取位 |
 | `repositoryQuery` | SQLite 插入和三类条件查询可用 |
@@ -537,7 +537,7 @@ DataGenerator
 | `controllerStopsContinuousRun` | 数量为空的持续发送可被用户停止 |
 | `loopbackBenchmarkDeliversDatagrams` | 2000 条真实接收、序号、异常和丢包统计正确 |
 
-QtTest 还会统计初始化与清理阶段，因此最终总数显示为 12 passed。
+QtTest 还会统计初始化与清理阶段，因此当前最终总数显示为 16 passed。
 
 ## 9.2 完整自动验收命令
 
@@ -547,7 +547,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 
 通过条件：
 
-- 12 passed，0 failed；
+- 16 passed，0 failed；
 - 2000 条全部写入并全部接收；
 - 异常 0；
 - 丢包率 0.00%；
@@ -808,7 +808,7 @@ git push -u origin codex/complete-t007-delivery
 
 ## 第 5 分钟：展示质量证据
 
-展示 PowerShell 中的 `12 passed, 0 failed`、`dist` 打包结果和 Git 提交历史。最后主动说明性能是本机样本，完整 15 类字段还要与老师原始清单核对。
+展示 PowerShell 中的 `16 passed, 0 failed`、`dist` 打包结果和 Git 提交历史。最后主动说明性能是本机样本，课程样例已兼容，但完整 15 类字段还要与老师原始清单核对。
 
 ---
 
@@ -885,7 +885,7 @@ git status --short -- .
 
 - [ ] 使用指定 Qt 5.9.7 MinGW 套件；
 - [ ] 完整脚本退出码为 0；
-- [ ] 12 passed，0 failed；
+- [ ] 16 passed，0 failed；
 - [ ] loopback 发送 2000、接收 2000；
 - [ ] 异常 0、丢包率 0.00%；
 - [ ] `dist` 打包完成；

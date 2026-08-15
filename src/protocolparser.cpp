@@ -166,9 +166,9 @@ bool parseCourseRange(ProtocolField *field, QString *error)
         if (!field->data.isEmpty())
         {
             quint32 fixed = 0;
-            if (!parseIPv4(field->data, &fixed))
+            if (!parseIPv4(field->data, &fixed) || fixed < minimum || fixed > maximum)
             {
-                if (error) *error = QString::fromUtf8("IP 字段 data 无效");
+                if (error) *error = QString::fromUtf8("IP 字段 data 无效或超出范围");
                 return false;
             }
         }
@@ -189,6 +189,16 @@ bool parseCourseRange(ProtocolField *field, QString *error)
         {
             if (error) *error = QString::fromUtf8("浮点字段 minimum/maximum 无效");
             return false;
+        }
+        if (!field->data.isEmpty())
+        {
+            bool dataOk = false;
+            const double fixed = field->data.toDouble(&dataOk);
+            if (!dataOk || fixed < field->minValue || fixed > field->maxValue)
+            {
+                if (error) *error = QString::fromUtf8("浮点字段 data 无效或超出范围");
+                return false;
+            }
         }
         return true;
     }
@@ -429,9 +439,9 @@ bool ProtocolParser::load(const QString &filePath)
         {
             bool ok = false;
             definition.messageType = messageTypeText.toInt(&ok);
-            if (!ok)
+            if (!ok || (definition.messageType != 0 && definition.messageType != 1))
             {
-                m_lastError = QString::fromUtf8("nType 必须为整数");
+                m_lastError = QString::fromUtf8("nType 必须为 0（正常）或 1（报文头）");
                 return false;
             }
         }
@@ -442,14 +452,16 @@ bool ProtocolParser::load(const QString &filePath)
     definition.name = root.attribute("name").trimmed();
     if (definition.name.isEmpty())
     {
-        definition.name = QFileInfo(filePath).completeBaseName();
+        definition.name = definition.packedBitLayout
+            ? QFileInfo(filePath).completeBaseName()
+            : QString("UnnamedProtocol");
     }
     if (definition.name.isEmpty())
     {
         definition.name = definition.system.isEmpty() ? QString("UnnamedProtocol") : definition.system;
     }
 
-    int previousEndBit = 0;
+    QList<QPair<int, int> > occupiedRanges;
     for (int i = 0; i < fieldNodes.size(); ++i)
     {
         const QDomElement element = fieldNodes.at(i).toElement();
@@ -493,14 +505,15 @@ bool ProtocolParser::load(const QString &filePath)
                 m_lastError = QString::fromUtf8("字段 %1 必须满足 loopEnd = bitIndex + length").arg(label);
                 return false;
             }
-            if (field.bitIndex < previousEndBit)
-            {
-                m_lastError = QString::fromUtf8("字段 %1 与前一字段位区间重叠").arg(label);
-                return false;
-            }
             if (field.endBit > 65507 * 8)
             {
                 m_lastError = QString::fromUtf8("字段 %1 使报文超出 UDP 载荷上限").arg(label);
+                return false;
+            }
+            if ((isSignedIntegerType(field.dataType) || isUnsignedIntegerType(field.dataType))
+                && field.length > 64)
+            {
+                m_lastError = QString::fromUtf8("字段 %1 的整数位长不能超过 64 bit").arg(label);
                 return false;
             }
             if ((field.dataType == "STRING" && field.length % 8 != 0)
@@ -524,7 +537,16 @@ bool ProtocolParser::load(const QString &filePath)
                 m_lastError = QString::fromUtf8("字段 %1：%2").arg(label, rangeError);
                 return false;
             }
-            previousEndBit = field.endBit;
+            for (int rangeIndex = 0; rangeIndex < occupiedRanges.size(); ++rangeIndex)
+            {
+                const QPair<int, int> range = occupiedRanges.at(rangeIndex);
+                if (field.bitIndex < range.second && field.endBit > range.first)
+                {
+                    m_lastError = QString::fromUtf8("字段 %1 与已有字段位区间重叠").arg(label);
+                    return false;
+                }
+            }
+            occupiedRanges.append(qMakePair(field.bitIndex, field.endBit));
         }
         else
         {
