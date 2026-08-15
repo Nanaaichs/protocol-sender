@@ -1,5 +1,5 @@
 #include "transmissionrepository.h"
-
+// 负责创建/打开SQLite数据库、建表、插入发送日志、查询发送日志、关闭数据库
 #include <QDir>
 #include <QFileInfo>
 #include <QSqlError>
@@ -11,7 +11,8 @@ TransmissionRepository::TransmissionRepository(const QString &databasePath, cons
     m_db = QSqlDatabase::addDatabase("QSQLITE", connectionName);
     QDir().mkpath(QFileInfo(databasePath).absolutePath());
     m_db.setDatabaseName(databasePath);
-    if (!m_db.open()) {
+    if (!m_db.open())
+    {
         m_lastError = m_db.lastError().text();
         return;
     }
@@ -21,7 +22,8 @@ TransmissionRepository::TransmissionRepository(const QString &databasePath, cons
 TransmissionRepository::~TransmissionRepository()
 {
     const QString connectionName = m_db.connectionName();
-    if (m_db.isOpen()) {
+    if (m_db.isOpen())
+    {
         m_db.close();
     }
     m_db = QSqlDatabase();
@@ -40,7 +42,8 @@ QString TransmissionRepository::lastError() const
 
 bool TransmissionRepository::insert(const TransmissionLogEntry &entry)
 {
-    if (!m_db.isOpen()) {
+    if (!m_db.isOpen())
+    {
         m_lastError = "SQLite 数据库未打开";
         return false;
     }
@@ -54,7 +57,8 @@ bool TransmissionRepository::insert(const TransmissionLogEntry &entry)
     query.addBindValue(entry.port);
     query.addBindValue(entry.sequence);
     query.addBindValue(entry.payload);
-    if (!query.exec()) {
+    if (!query.exec())
+    {
         m_lastError = query.lastError().text();
         return false;
     }
@@ -74,11 +78,13 @@ QList<TransmissionLogEntry> TransmissionRepository::search(const QString &timeLi
     query.addBindValue(timeLike.isEmpty() ? "%" : "%" + timeLike + "%");
     query.addBindValue(protocolLike.isEmpty() ? "%" : "%" + protocolLike + "%");
     query.addBindValue(ipLike.isEmpty() ? "%" : "%" + ipLike + "%");
-    if (!query.exec()) {
+    if (!query.exec())
+    {
         m_lastError = query.lastError().text();
         return entries;
     }
-    while (query.next()) {
+    while (query.next())
+    {
         TransmissionLogEntry entry;
         entry.createdAt = query.value(0).toString();
         entry.protocolName = query.value(1).toString();
@@ -96,14 +102,15 @@ void TransmissionRepository::initialize()
 {
     QSqlQuery query(m_db);
     if (!query.exec(
-        "CREATE TABLE IF NOT EXISTS transmission_logs ("
-        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "created_at TEXT NOT NULL,"
-        "protocol_name TEXT NOT NULL,"
-        "ip TEXT NOT NULL,"
-        "port INTEGER NOT NULL,"
-        "sequence_no INTEGER NOT NULL,"
-        "payload TEXT NOT NULL)")) {
+            "CREATE TABLE IF NOT EXISTS transmission_logs ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "created_at TEXT NOT NULL,"
+            "protocol_name TEXT NOT NULL,"
+            "ip TEXT NOT NULL,"
+            "port INTEGER NOT NULL,"
+            "sequence_no INTEGER NOT NULL,"
+            "payload TEXT NOT NULL)"))
+    {
         m_lastError = query.lastError().text();
         return;
     }
