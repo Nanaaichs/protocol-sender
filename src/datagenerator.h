@@ -27,7 +27,14 @@
 // 所以这里必须让编译器知道
 // ProtocolDefinition 和 ProtocolField 是什么。
 
+#include <QByteArray>
 #include <QString>
+
+struct GeneratedPayload
+{
+    QByteArray datagram;
+    QString displayText;
+};
 
 // Qt 字符串类型。
 //
@@ -52,6 +59,8 @@ public:
     // ========================================================
 
     DataGenerator();
+
+    GeneratedPayload generate(const ProtocolDefinition &definition);
 
     // 创建 DataGenerator 对象时自动调用。
     //
@@ -175,6 +184,8 @@ public:
 
 
 private:
+
+    QString generateTextPayload(const ProtocolDefinition &definition);
 
     // ========================================================
     // private
@@ -317,6 +328,7 @@ private:
     // ========================================================
 
     QString randomString(int length);
+    QString randomIp(const QString &minimum, const QString &maximum);
 
     // 输入：
     //

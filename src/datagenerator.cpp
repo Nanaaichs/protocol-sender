@@ -36,8 +36,7 @@ namespace
 
     bool isSignedIntegerType(const QString &type)
     {
-        return type == "DEC"
-            || type == "INT"
+        return type == "INT"
             || type == "INT8"
             || type == "INT16";
     }
@@ -49,6 +48,7 @@ namespace
             || type == "UINT8"
             || type == "UINT16"
             || type == "UINT32"
+            || type == "DEC"
             || type == "BIN"
             || type == "OCT"
             || type == "HEX"
@@ -197,12 +197,14 @@ GeneratedPayload DataGenerator::generate(const ProtocolDefinition &definition)
         const ProtocolField &field = definition.fields.at(i);
         const QString type = normalizedType(field);
 
+        const bool fixedKeyValue = field.isKey && !field.data.isEmpty();
+
         if (type == "STRING")
         {
             const int byteLength = field.length / 8;
-            QByteArray bytes = field.data.isEmpty()
-                ? randomString(byteLength).toUtf8()
-                : field.data.toUtf8();
+            QByteArray bytes = fixedKeyValue
+                ? field.data.toUtf8()
+                : randomString(byteLength).toUtf8();
             bytes = bytes.left(byteLength);
             while (bytes.size() < byteLength)
             {
@@ -214,9 +216,9 @@ GeneratedPayload DataGenerator::generate(const ProtocolDefinition &definition)
 
         if (type == "IP")
         {
-            const QString ipText = field.data.isEmpty()
-                ? randomIp(field.minimum, field.maximum)
-                : field.data;
+            const QString ipText = fixedKeyValue
+                ? field.data
+                : randomIp(field.minimum, field.maximum);
             quint32 ipv4 = 0;
             if (parseIPv4(ipText, &ipv4))
             {
@@ -234,14 +236,14 @@ GeneratedPayload DataGenerator::generate(const ProtocolDefinition &definition)
         {
             bool fixedOk = false;
             const double ratio = static_cast<double>(boundedUnsigned(0, 1000000)) / 1000000.0;
-            const float value = field.data.isEmpty()
-                ? static_cast<float>(field.minValue + (field.maxValue - field.minValue) * ratio)
-                : field.data.toFloat(&fixedOk);
-            if (field.data.isEmpty() || fixedOk)
+            const double value = fixedKeyValue
+                ? field.data.toDouble(&fixedOk)
+                : field.minValue + (field.maxValue - field.minValue) * ratio;
+            if (!fixedKeyValue || fixedOk)
             {
-                quint32 rawValue = 0;
+                quint64 rawValue = 0;
                 std::memcpy(&rawValue, &value, sizeof(rawValue));
-                writeUnsignedBits(&payload.datagram, field.bitIndex, 32, rawValue);
+                writeUnsignedBits(&payload.datagram, field.bitIndex, 64, rawValue);
             }
             continue;
         }
@@ -250,10 +252,10 @@ GeneratedPayload DataGenerator::generate(const ProtocolDefinition &definition)
         {
             bool fixedOk = false;
             const double ratio = static_cast<double>(boundedUnsigned(0, 1000000)) / 1000000.0;
-            const double value = field.data.isEmpty()
-                ? field.minValue + (field.maxValue - field.minValue) * ratio
-                : field.data.toDouble(&fixedOk);
-            if (field.data.isEmpty() || fixedOk)
+            const double value = fixedKeyValue
+                ? field.data.toDouble(&fixedOk)
+                : field.minValue + (field.maxValue - field.minValue) * ratio;
+            if (!fixedKeyValue || fixedOk)
             {
                 quint64 rawValue = 0;
                 std::memcpy(&rawValue, &value, sizeof(rawValue));
@@ -265,7 +267,7 @@ GeneratedPayload DataGenerator::generate(const ProtocolDefinition &definition)
         if (isSignedIntegerType(type))
         {
             qint64 signedValue = 0;
-            if (!field.data.isEmpty())
+            if (fixedKeyValue)
             {
                 parseSignedText(field.data, &signedValue);
             }
@@ -284,7 +286,7 @@ GeneratedPayload DataGenerator::generate(const ProtocolDefinition &definition)
         if (isPackedIntegerType(type))
         {
             quint64 unsignedValue = 0;
-            if (!field.data.isEmpty())
+            if (fixedKeyValue)
             {
                 parseUnsignedText(field.data, type, &unsignedValue);
             }
@@ -351,7 +353,11 @@ QString DataGenerator::generateFieldValue(const ProtocolField &field)
 {
     const QString type = normalizedType(field);
     QString baseValue;
-    if (type == "DEC" || type == "INT")
+    if (type == "DEC")
+    {
+        baseValue = QString::number(boundedUnsigned(field.minValue, field.maxValue));
+    }
+    else if (type == "INT")
     {
         baseValue = QString::number(boundedSigned(field.minValue, field.maxValue));
     }
