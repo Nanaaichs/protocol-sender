@@ -9,20 +9,20 @@
 已完成项：
 
 1. 读取自定义 XML 协议；
-2. 支持题面 15 类字段，并额外兼容课程样例中的 `IP`；
+2. 保留现有 16 种字段兼容类型；本轮不把最终 14 种类型映射作为验收重点；
 3. 按字段规则随机生成值；
 4. 配置发送频率、数量、IP、端口；
 5. 数量留空时持续发送直到停止；
 6. UDP 发送控制器；
-7. SQLite 日志；
-8. 按时间 / 协议 / IP 查询；
+7. SQLite 每次发送任务汇总日志；
+8. 按时间段 / 协议 / IP 查询；
 9. loopback 基线逻辑；
 10. README、测试、部署说明、AI 使用说明和证据文档。
 
 验收边界：
 
 - 应用、测试、打包和本机 loopback 已实际运行；
-- 两个课程协议样例已加入并验证；样例只覆盖 5 种类型，完整 15 类仍需用原始题面核对；
+- 两个课程协议样例已加入并验证；样例覆盖 5 种类型，最终 14 种类型映射按本轮约定暂不验收；
 - 课程提交前建议再做一次人工 GUI 全流程演示并保存截图。
 
 ## 3. 字段类型与完成度
@@ -48,7 +48,7 @@
 - `UINT16`
 - `UINT32`
 
-上述 15 类均已实现。课程提供的第二个协议样例还使用 `IP`，因此项目为向后兼容保留原 15 类并增加 `IP`，当前兼容集共 16 类。
+上述类型均已实现。课程提供的第二个协议样例还使用 `IP`，因此当前兼容集共 16 种。用户已明确本轮不计较最终 14 种类型清单，后续若教师给出精确名单，再做收敛即可。
 
 ## 4. 架构、数据流与模块
 
@@ -71,26 +71,32 @@
 2. `ProtocolParser` 解析为 `ProtocolDefinition`。
 3. `DataGenerator` 根据字段类型与取值范围随机生成 `key=value` 列表。
 4. `UdpSendController` 调用 `QUdpSocket::writeDatagram` 发送。
-5. 每次发送后写入 `TransmissionRepository`。
-6. 用户按时间 / 协议 / IP 过滤并查看日志。
+5. 发送完成、用户停止或发生错误时，由 `TransmissionRepository` 写入一条任务汇总。
+6. 用户按开始/结束时间段、协议和 IP 过滤并查看汇总日志。
 
 ## 5. 存储接口
 
-SQLite 表：`transmission_logs`
+SQLite 表：`transmission_runs`
 
 字段：
 
 - `id`
-- `created_at`
 - `protocol_name`
-- `ip`
-- `port`
-- `sequence_no`
-- `payload`
+- `requested_count`
+- `total_count`
+- `frequency_hz`
+- `start_time`
+- `end_time`
+- `target_ip`
+- `target_port`
+- `status`
+- `error_message`
 
 查询接口：
 
-- `search(const QString &timeLike, const QString &protocolLike, const QString &ipLike)`
+- `searchRuns(const QString &fromTime, const QString &toTime, const QString &protocolLike, const QString &ipLike)`
+
+查询采用时间区间相交语义，并对协议名和目标 IP 使用参数绑定的模糊匹配。旧版 `transmission_logs` 表若已存在会原样保留，不做破坏性迁移。
 
 ## 6. 关键实现
 
@@ -111,19 +117,19 @@ SQLite 表：`transmission_logs`
 - 端到端 26.546 ms，约 75,339.78 Hz；
 - 丢包率 0.00%。
 
-正常 GUI 发送与性能基准是两条不同路径：正常发送限制为 1–1000 Hz，并逐条写入 SQLite；性能基准用于测量本机生成与 UDP loopback 的短时上界，不写业务日志。多次验证结果会随系统负载波动，上述数值只代表当前机器的一次干净构建运行，不能直接推广到其他机器或远端网络。
+正常 GUI 发送与性能基准是两条不同路径：正常发送限制为 1–1000 Hz，并在任务结束时写入一条 SQLite 汇总；性能基准用于测量本机生成与 UDP loopback 的短时上界，不写业务日志。多次验证结果会随系统负载波动，上述数值只代表当前机器的一次干净构建运行，不能直接推广到其他机器或远端网络。
 
 代码复核后的另一次样本为端到端 53.323 ms，约 37,507.20 Hz，同样是 2000/2000 且丢包 0.00%。因此正式验收以报文数、异常数和丢包率为主，吞吐仅作当时机器样本。
 
 ## 8. 测试证据与限制
 
-测试覆盖旧/课程两种 XML、16 类兼容集生成、课程 4/12 字节二进制布局、真实 UDP 收包与 HEX 日志、SQLite 查询、发送参数校验、有限/持续发送以及 loopback 吞吐和丢包统计。
+测试覆盖旧/课程两种 XML、课程字段契约、16 种兼容类型生成、课程 4/12 字节二进制布局、真实 UDP 收包与 HEX 预览、SQLite 任务汇总和时间段查询、发送参数校验、有限/持续发送以及 loopback 吞吐和丢包统计。
 
 实际验证结果：
 
 - 应用成功编译并链接为 `protocol_sender.exe`；
 - 测试成功编译并链接为 `protocol_sender_tests.exe`；
-- QtTest 实际运行：16 passed，0 failed；
+- QtTest 实际运行：17 passed，0 failed；
 - `windeployqt` 成功生成包含 Qt 平台插件和 SQLite 驱动的 `dist`；
 - 打包程序无交互冒烟启动退出码为 0。
 
@@ -158,13 +164,13 @@ SQLite 表：`transmission_logs`
 
 ### 10.3 拒绝或修正内容
 
-- 根据补充要求把字段类型从 14 类扩展为 15 类；
+- 根据课程样例保留旧类型兼容，同时把最终 14 种类型映射留作后续精确核对；
 - 在旧工具链尚不可运行时删除任何暗示“已实测最高频率”的表述，避免虚构性能数据；
 - 在获得真实 Qt 5.9.7 工具链后重新运行测试，并用实际 loopback 收包数据替换旧的“仅有方法论”结论。
 
 ### 10.4 人工复核
 
-- 核对题面 15 类字段清单，并确认额外 `IP` 兼容的必要性；
+- 核对课程字段位置、长度、标识字段和值域随机生成规则，并确认 `IP` 兼容的必要性；
 - 审查性能分析是否区分“方法”和“实测”；
 - 复核链接失败根因是否真实。
 
@@ -183,4 +189,4 @@ SQLite 表：`transmission_logs`
 
 结论：
 
-本项目已完成旧/课程两种协议解析、16 类兼容集生成、课程二进制位打包、参数校验、UDP 发送控制、SQLite 日志与查询、真实 loopback 基准、自动测试和 Windows 打包。提交前剩余工作是用 Packet Sender 保存人工收包截图，并用课程原始题面核对最终 15 类清单。
+本项目已完成旧/课程两种协议解析、16 种类型兼容、课程字段契约与二进制位打包、参数校验、UDP 发送控制、SQLite 任务汇总与组合查询、真实 loopback 基准、自动测试和 Windows 打包。提交前剩余工作是用 Packet Sender 保存人工收包截图；最终 14 种类型映射按本轮约定暂不影响验收。

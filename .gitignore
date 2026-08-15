@@ -1,6 +1,8 @@
 # Qt / build
 build/
 build-*/
+dist/
+dist-candidate/
 *.pro.user
 *.pro.user.*
 

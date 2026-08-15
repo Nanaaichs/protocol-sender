@@ -2,14 +2,14 @@
 
 ## 完整项目说明书
 
-文档版本：1.0
+文档版本：1.1
 
 适用系统：Windows 10/11
 
 项目工具链：Qt 5.9.7、MinGW 5.3.0 32-bit、C++11、qmake
 
-适用分支：`codex/complete-t007-delivery`
-编制日期：2026-08-08
+适用分支：`main`
+编制日期：2026-08-16
 
 > 本说明书面向没有 Qt、C++、UDP、SQLite 或 Git 经验的读者。只要按顺序完成“环境检查—构建—运行—验收—提交”，即可复现并交付当前项目。带有“必须核对”标记的内容不能跳过。
 
@@ -30,7 +30,7 @@
 
 ## 1.1 一句话说明
 
-本项目是一个 Windows 桌面程序。它读取 XML 格式的通信协议说明，按照字段规则随机生成文本报文，以指定频率通过 UDP 发送，同时把发送时间、协议名、目标地址、序号和载荷保存到 SQLite 数据库，并提供日志检索和本机 loopback 性能测试。
+本项目是一个 Windows 桌面程序。它读取 XML 格式的通信协议说明，按照字段规则生成文本或二进制报文，以指定频率通过 UDP 发送；每次任务结束后，把配置数量、实际总数、频率、起止时间、目标地址和任务结果汇总到 SQLite，并提供条件检索和本机 loopback 性能测试。
 
 ## 1.2 外行人需要理解的五个名词
 
@@ -47,24 +47,24 @@
 | 编号 | 要求 | 当前实现 |
 | --- | --- | --- |
 | R1 | 读取自定义 XML 协议 | 已完成，且会拒绝结构或属性非法的 XML |
-| R2 | 支持 15 类字段 | 已保留原有 15 类，并兼容课程样例中的 `IP`；最终仍需用老师原题核对清单 |
+| R2 | 支持课程字段类型 | 当前保留 16 种兼容类型；最终 14 种类型映射按本轮约定暂不作为验收项 |
 | R3 | 随机生成字段值 | 已完成，支持范围、长度、模板、固定值和位提取 |
 | R4 | 配置频率、数量、IP、端口 | 已完成，常规频率范围为 1–1000 Hz |
 | R5 | 数量为空时持续发送 | 已完成，用户点击“停止发送”结束 |
 | R6 | 通过 UDP 发送 | 已完成，基于 `QUdpSocket` |
-| R7 | 显示进度并写 SQLite 日志 | 已完成，预览区最多保留最近 200 条载荷 |
-| R8 | 按时间、协议、IP 查询 | 已完成，可单独或组合输入条件 |
+| R7 | 显示进度并写 SQLite 日志 | 已完成，预览区保留最近 200 条载荷，每次任务结束写 1 条汇总 |
+| R8 | 按时间段、协议、IP 查询 | 已完成，时间使用起止范围，协议和 IP 支持模糊匹配 |
 | R9 | 提供本机性能测试 | 已完成真实 localhost 接收、吞吐和丢包统计 |
 
 ## 1.4 当前已经验证的结果
 
-- QtTest：16 passed，0 failed，0 skipped；
+- QtTest：17 passed，0 failed，0 skipped；
 - loopback：请求 2000 条，写入 2000 条，接收 2000 条，异常 0 条，丢包率 0.00%；
 - `windeployqt` 打包成功；
 - 打包后的程序通过 `--smoke-test`，退出码为 0；
 - 生成的 `dist` 包含 Qt 平台插件、SQLite 驱动和 MinGW 运行库。
 
-性能数字会随机器负载变化。本轮多次样本约为 37,500–75,340 Hz，均为发送 2000、接收 2000、异常 0、丢包 0.00%。验收时首先关注“发送数、接收数、异常数和丢包率”，不要把一次吞吐结果宣传为所有机器都能达到的保证值。
+性能数字会随机器负载变化。本轮多次样本约为 37,500–81,325 Hz，均为发送 2000、接收 2000、异常 0、丢包 0.00%。验收时首先关注“发送数、接收数、异常数和丢包率”，不要把一次吞吐结果宣传为所有机器都能达到的保证值。
 
 ---
 
@@ -96,9 +96,9 @@ SQLite 日志不保存在项目目录或 `data` 目录，而是保存在当前 W
 
 ## 2.3 当前已知边界
 
-1. 仓库中的需求整理稿只明确列出部分字段类型，“补齐到 15 类”的最终名单必须与老师原始题面再次核对。
-2. 普通发送记录的是“成功写入 UDP socket 且成功写入 SQLite”，不等于远端设备已经收到；真实接收由 loopback 验证。
-3. `isKey` 属性会被解析并保存在协议对象中，但当前文本载荷格式不会对关键字段做额外编码或排序。
+1. 本轮不以最终 14 种类型映射作为验收阻塞项；教师给出精确名单后可再收敛兼容集。
+2. 普通发送的实际总数表示成功写入 UDP socket 的报文数，不等于远端设备已经收到；真实接收由 loopback 或 Packet Sender 验证。
+3. 课程子元素格式中，`isKey=true` 必须提供固定 `data`；非标识字段根据值域随机生成。旧属性式格式继续保留原有模板兼容语义。
 4. 基准是本机短时间测试，不代表远程网络和其他电脑的性能。
 5. 课程提交平台、教师评分表和最终截图仍需人工处理。
 
@@ -156,24 +156,27 @@ Git 应输出版本号；PowerShell 主版本建议不低于 5。构建命令使
 
 ```powershell
 cd 'C:\Users\LHX\Desktop\上课\高级软件研发实践\projects\CITEL-T-007'
-git switch codex/complete-t007-delivery
+git switch main
 git branch --show-current
 git status --short -- .
 ```
 
-分支名应为 `codex/complete-t007-delivery`。最后一条命令没有输出，表示本项目目录没有未提交文件。
+分支名应为 `main`。最后一条命令没有输出，表示本项目目录没有未提交文件。
 
 上层课程仓库可能还有其他练习文件的改动，所以不要用不带路径限制的状态作为本项目是否干净的唯一判断，也不要随意执行 `git add -A`。
 
 ## 4.2 从远程仓库获取时
 
-当前本地仓库尚未配置远程地址。仓库所有者需要先配置并推送：
+当前仓库已经配置 `origin`。如果要把它改成自己的远程仓库，先查看现有地址，再替换并推送：
 
 ```powershell
 $repoUrl = Read-Host '请输入远程仓库地址，例如 https://github.com/your-name/course-repository.git'
-git remote add origin $repoUrl
-git push -u origin codex/complete-t007-delivery
+git remote -v
+git remote set-url origin $repoUrl
+git push -u origin main
 ```
+
+只有在 `git remote -v` 没有显示 `origin` 时，才使用 `git remote add origin $repoUrl`，不要对已经存在的 `origin` 重复执行 `add`。
 
 其他人随后可以执行：
 
@@ -181,7 +184,7 @@ git push -u origin codex/complete-t007-delivery
 $repoUrl = Read-Host '请输入远程仓库地址'
 git clone $repoUrl '.\course-repository'
 cd '.\course-repository\projects\CITEL-T-007'
-git switch codex/complete-t007-delivery
+git switch main
 ```
 
 如果没有远程仓库，也可以复制整个课程仓库目录。只复制 `CITEL-T-007` 可以构建和运行，但不会包含完整 Git 历史。
@@ -215,8 +218,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 5. 实际运行 QtTest；
 6. 使用 `windeployqt` 收集运行依赖；
 7. 检查关键 DLL、平台插件和 SQLite 驱动是否齐全；
-8. 将结果复制到 `dist`；
-9. 运行 `dist/protocol_sender.exe --smoke-test`。
+8. 将结果复制到 `dist`；若旧程序正在运行并占用 DLL，则改写到 `dist-candidate`；
+9. 对实际写入的包运行 `protocol_sender.exe --smoke-test`。
 
 Qt 5.9 的 `windeployqt` 对中文路径处理不稳定，因此脚本先在纯英文临时目录完成部署，再复制回项目。不要为了“简化”而删除这一阶段。
 
@@ -225,10 +228,12 @@ Qt 5.9 的 `windeployqt` 对中文路径处理不稳定，因此脚本先在纯�
 输出中应出现：
 
 ```text
-Totals: 16 passed, 0 failed, 0 skipped
+Totals: 17 passed, 0 failed, 0 skipped
 Package ready: ...\CITEL-T-007\dist
 Build and tests completed successfully.
 ```
+
+如果旧的 `dist\protocol_sender.exe` 正在运行，输出目录会是 `dist-candidate`。这仍表示新包已经通过冒烟测试；关闭旧程序后再执行一次完整命令，即可更新正式 `dist`。
 
 loopback 测试还应出现类似：
 
@@ -244,6 +249,7 @@ loopback 测试还应出现类似：
 build\app\release\protocol_sender.exe
 build\tests\release\protocol_sender_tests.exe
 dist\protocol_sender.exe
+dist-candidate\protocol_sender.exe    # 仅在 dist 被运行中的程序占用时出现
 ```
 
 `build` 和 `dist` 都被 `.gitignore` 忽略，不应提交到 Git。需要重新生成时再次运行脚本即可。
@@ -281,10 +287,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 | 开始发送 | 校验参数后开始常规发送和日志记录 | - |
 | 停止发送 | 停止持续发送任务 | - |
 | loopback 基线 | 自动建立本机接收端并发送 2000 条测试报文 | - |
-| 时间检索 | 按时间文本模糊匹配日志 | 如 `2026-08-08` |
+| 开始时间 | 限定任务时间范围的下界；留空表示不限 | `2026-08-15 09:00:00` |
+| 结束时间 | 限定任务时间范围的上界；留空表示不限 | `2026-08-15 18:00:00` |
 | 协议检索 | 按协议名模糊匹配日志 | `LoopbackDemo` |
 | IP 检索 | 按目标 IP 模糊匹配日志 | `127.0.0.1` |
-| 查询日志 | 按三个输入框的组合条件查询 | - |
+| 查询日志 | 按四个输入框的组合条件查询 | - |
 
 ## 6.3 第一次操作
 
@@ -293,7 +300,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 3. 点击“开始发送”。
 4. 等待进度条到 20。
 5. 检查预览区是否出现类似 `device_id=...;flags=...` 的文本。
-6. 检查日志表是否出现 20 条新记录。
+6. 检查日志表是否新增 1 条记录，且“配置数量”和“实际总数”都是 20，状态为“已完成”。
 
 如果端口上没有其他接收程序，普通发送仍可能显示成功，因为 UDP 写入 socket 并不要求对方回执。要验证真正接收，请继续执行 loopback 基线。
 
@@ -307,18 +314,20 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 
 ## 6.5 日志查询
 
-三个条件都是“包含匹配”，可以单独使用，也可以组合使用：
+四个条件可以单独使用，也可以组合使用：
 
-- 时间：输入 `2026-08-08` 可查当天记录；
+- 开始时间/结束时间：格式为 `yyyy-MM-dd HH:mm:ss`，用于查询与该时间段相交的任务；任一项可留空；
 - 协议：输入 `Loopback` 可匹配 `LoopbackDemo`；
 - IP：输入 `127.0.0.1` 可匹配本机发送记录；
-- 全部留空：返回所有记录，按新到旧排列。
+- 全部留空：返回所有任务汇总，按开始时间从新到旧排列。
 
 关闭程序再重新打开并查询，历史记录仍应存在。这一步可以验证 SQLite 持久化。
 
 ---
 
 # 7. XML 协议文件怎么写
+
+本章同时说明两种输入格式。7.1–7.7 介绍项目原有的“属性式兼容格式”，便于理解和修改内置示例；老师提供的协议文件属于“课程子元素格式”，其严格规则以 7.8 和 `docs/COURSE_PROTOCOL_COMPATIBILITY.md` 为准。两种格式不要在同一个字段中混写。
 
 ## 7.1 最小可用示例
 
@@ -330,6 +339,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
          dataType="UINT16"
          min="1"
          max="100"
+         data="42"
          isSelected="true"
          isKey="true"
          bitIndex="-1"
@@ -356,18 +366,18 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 | `max` | `100` | 数值上界，必须是数字 |
 | `length` | `8` | 字符串长度，必须为正整数 |
 | `data` | 空 | 固定值或模板，具体规则见 7.5 |
-| `isSelected` | `true` | 为 false 时不输出该字段 |
-| `isKey` | `false` | 当前会解析保存，但不会改变载荷格式 |
+| `isSelected` | `true` | 旧属性式格式中为 false 时不输出该字段；课程格式中只代表“不关注”，字段仍占据报文位区间 |
+| `isKey` | `false` | 课程格式中为 true 时必须提供固定 `data`；为 false 时根据值域随机生成 |
 | `bitIndex` | `-1` | `-1` 表示不提取位；0–63 表示提取相应二进制位 |
 | `loopEnd` | `false` | 为 true 时结束当前字段分组，组之间使用 ` || ` |
 
-布尔值可写 `1`、`true`、`yes` 表示真；其他非空文本会按假处理。建议统一使用 `true` 或 `false`。
+旧属性式兼容格式允许用 `1`、`true`、`yes` 表示真；课程子元素格式只接受 `true` 或 `false`。为了避免同一文件在两种规则下含义不同，统一写 `true` 或 `false`。
 
 ## 7.4 支持的数据类型
 
 | 类型 | 输出形式 | 说明 |
 | --- | --- | --- |
-| `DEC` | 十进制整数 | 按 `min`/`max` 生成有符号整数 |
+| `DEC` | 无符号十进制整数 | 按 `min`/`max` 生成非负整数 |
 | `INT` | 十进制整数 | 按 `min`/`max` 生成有符号整数 |
 | `UINT` | 非负十进制整数 | 负下界会按 0 处理 |
 | `BIN` | 二进制字符串 | 例如 `1101` |
@@ -384,7 +394,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 | `UINT32` | 0 到 4294967295 | 先把配置范围限制在类型范围内 |
 | `IP` | IPv4 地址 | 课程样例要求；按 IPv4 数值范围随机生成 |
 
-题面要求 15 类，课程实际样例又使用了 `IP`。为了向后兼容，项目不删除原有类型，当前可接受的兼容集共 16 类。
+为了兼容既有文件和课程样例，当前可接受的兼容集共 16 种。本轮不把最终 14 种类型映射作为验收阻塞项；后续拿到教师精确清单后再收敛。
 
 ## 7.5 data：固定值与模板
 
@@ -445,7 +455,9 @@ first=1 || second=MODE-A7Q2;checksum=FF03
 
 ## 7.8 课程子元素格式
 
-老师提供的两个协议样例不把字段数据写成 XML 属性，而是使用 `fieldName`、`datatype`、`minimum`、`maximum` 等子元素。该格式中 `bitIndex`、`length`、`loopEnd` 分别表示起始位、位长和结束位，程序会按位布局生成二进制 UDP 报文。
+老师提供的两个协议样例不把字段数据写成 XML 属性，而是使用 `fieldName`、`datatype`、`minimum`、`maximum` 等子元素。该格式中 `bitIndex`、`length`、`loopEnd` 分别表示起始位、位长和结束位，且必须满足 `loopEnd = bitIndex + length`；字段不得重叠，程序按网络字节序/MSB-first 生成二进制 UDP 报文。
+
+课程格式还有以下强制规则：`isSelected` 和 `isKey` 只能写 `true` 或 `false`；标识字段必须提供 `data`；非标识字段根据 `minimum`、`maximum`、`precision` 随机生成；`isSelected=false` 不会删除线缆报文中的位区间；字段长度必须符合各类型约束，例如 `FLAG=8 bit`、`FLT/DBL=64 bit`、`IP=32 bit`。
 
 完整字段映射、字节序假设、两个样例的预期字节数以及 Packet Sender 验收步骤见 `docs/COURSE_PROTOCOL_COMPATIBILITY.md`。
 
@@ -459,9 +471,9 @@ first=1 || second=MODE-A7Q2;checksum=FF03
 XML 文件
   -> ProtocolParser 解析和校验
   -> ProtocolDefinition 内存对象
-  -> DataGenerator 生成字段值和文本载荷
+  -> DataGenerator 生成字段值和文本/二进制载荷
   -> UdpSendController 按时间调度并写入 UDP socket
-  -> TransmissionRepository 写入 SQLite
+  -> 任务结束时由 TransmissionRepository 写入 SQLite 汇总
   -> MainWindow 显示进度、预览、状态和查询结果
 ```
 
@@ -481,7 +493,7 @@ DataGenerator
 | 程序入口 | `src/main.cpp` | 建立 Qt 应用；支持正常 GUI 和 `--smoke-test` |
 | 协议解析 | `src/protocolparser.*` | 读取 XML、设置默认值、校验属性、形成协议对象 |
 | 数据生成 | `src/datagenerator.*` | 实现 16 类兼容集、旧文本载荷与课程二进制位打包 |
-| 日志仓储 | `src/transmissionrepository.*` | 建表、插入、按时间/协议/IP 查询 |
+| 日志仓储 | `src/transmissionrepository.*` | 建立任务汇总表、插入、按时间段/协议/IP 查询 |
 | 发送控制 | `src/udpsendcontroller.*` | 参数校验、定时发送、错误停止、loopback 基准 |
 | 图形界面 | `src/mainwindow.*` | 收集输入、调用模块、显示反馈 |
 | 应用工程 | `src/protocol_sender.pro` | 声明 Qt 模块、源码和资源 |
@@ -495,28 +507,32 @@ DataGenerator
 4. 第一个单次定时器立即触发。
 5. 生成载荷并调用 `writeDatagram`。
 6. 如果写入字节数不等于载荷长度，停止并报告 UDP 错误。
-7. UDP 写入成功后序号加一，并写 SQLite。
-8. SQLite 写入失败时停止，明确提示“UDP 已发送，但日志写入失败”。
-9. 发出预览和进度信号。
-10. 有限任务达到数量后结束；否则根据累计目标时间安排下一次发送。
+7. UDP 写入成功后序号加一，发出预览和进度信号。
+8. 有限任务达到数量后结束；否则根据累计目标时间安排下一次发送。
+9. 任务完成、用户停止或发生错误时，统一记录结束时间、实际总数和状态，并只写入一条 SQLite 汇总日志。
+10. 如果汇总日志写入失败，界面明确提示数据库错误，但不会伪造已经入库的记录。
 
 调度使用累计目标时间，而不是简单地每次等待固定间隔，可以减小单次处理时间逐步累积造成的漂移。
 
 ## 8.4 SQLite 表结构
 
-表名：`transmission_logs`
+表名：`transmission_runs`
 
 | 列名 | 含义 |
 | --- | --- |
 | `id` | 自动增长主键 |
-| `created_at` | ISO 格式发送时间 |
 | `protocol_name` | 协议名 |
-| `ip` | 目标 IP |
-| `port` | 目标端口 |
-| `sequence_no` | 当前任务内发送序号 |
-| `payload` | 完整文本载荷 |
+| `requested_count` | 用户配置数量；0 表示持续发送 |
+| `total_count` | 本次实际成功写入 UDP socket 的总数 |
+| `frequency_hz` | 本次配置频率 |
+| `start_time` | ISO 格式开始时间 |
+| `end_time` | ISO 格式结束时间 |
+| `target_ip` | 目标 IP |
+| `target_port` | 目标端口 |
+| `status` | `completed`、`stopped` 或 `failed` |
+| `error_message` | 失败原因；成功或用户停止时为空 |
 
-查询使用参数绑定而不是字符串拼接，可以避免输入内容破坏 SQL 结构。
+查询使用参数绑定而不是字符串拼接，可以避免输入内容破坏 SQL 结构。时间条件采用“任务区间与查询区间相交”的语义；协议和 IP 使用模糊匹配。旧版本的 `transmission_logs` 表若已存在会原样保留，因此升级不会删除历史数据。
 
 ---
 
@@ -527,17 +543,21 @@ DataGenerator
 | 测试 | 证明内容 |
 | --- | --- |
 | `parseProtocol` | 合法 XML 和主要属性能被正确解析 |
+| `parseCourseProtocolExamples` | 两个课程样例的元数据、字段和位布局正确 |
+| `rejectInvalidPackedLayout` | 错误结束位、字段重叠和过大报文被拒绝 |
+| `enforceCourseFieldContract` | 标识字段固定值、长度规则及不关注字段占位符合课程约束 |
 | `rejectInvalidProtocol` | 未知数据类型会被拒绝 |
 | `generateAllSupportedTypes` | 16 类兼容集都能生成且格式可解析 |
 | `generatePayloadGroups` | 选择、模板和 `loopEnd` 分组正确 |
 | `literalDataSupportsBitExtraction` | 固定整数数据可以先固定再提取位 |
-| `repositoryQuery` | SQLite 插入和三类条件查询可用 |
+| `repositoryQuery` | SQLite 任务汇总及时间段、协议、IP 组合查询可用 |
 | `controllerRejectsInvalidParameters` | 空协议、非法 IP、端口、频率和负数量被拒绝 |
-| `controllerSendsAndLogs` | 有限发送、真实接收、进度和日志数量一致 |
-| `controllerStopsContinuousRun` | 数量为空的持续发送可被用户停止 |
+| `controllerSendsAndLogs` | 有限发送、真实接收、进度及单条完成汇总一致 |
+| `controllerSendsPackedCourseDatagram` | 课程二进制报文经真实 UDP 收发且写入单条汇总 |
+| `controllerStopsContinuousRun` | 数量为空的持续发送可停止，并写入单条停止汇总 |
 | `loopbackBenchmarkDeliversDatagrams` | 2000 条真实接收、序号、异常和丢包统计正确 |
 
-QtTest 还会统计初始化与清理阶段，因此当前最终总数显示为 16 passed。
+QtTest 还会统计初始化与清理阶段，因此当前最终总数显示为 17 passed。
 
 ## 9.2 完整自动验收命令
 
@@ -547,7 +567,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 
 通过条件：
 
-- 16 passed，0 failed；
+- 17 passed，0 failed；
 - 2000 条全部写入并全部接收；
 - 异常 0；
 - 丢包率 0.00%；
@@ -561,7 +581,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 3. 点击“loopback 基线”，截图 2000/2000、异常 0、丢包 0.00%。
 4. 默认参数发送 20 条，截图进度、预览和日志表。
 5. 清空数量，持续发送数秒并停止，截图停止状态。
-6. 分别按日期、协议和 IP 查询，截图检索结果。
+6. 输入开始/结束时间段，再分别按协议和 IP 查询，截图组合检索结果。
 7. 输入非法 IP，例如 `not-an-ip`，确认拒绝。
 8. 输入端口 0 或频率超过 1000，确认拒绝。
 9. 关闭后重新打开程序，确认历史日志仍能查到。
@@ -585,10 +605,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 - 测试存在 failed；
 - loopback 接收数少于发送数且无法解释；
 - `qwindows.dll` 或 `qsqlite.dll` 缺失；
-- 普通发送没有日志或日志数量与成功进度不一致；
+- 一次发送没有产生汇总日志，或“实际总数”与成功进度不一致；
 - 非法参数导致程序崩溃；
 - Git 中遗漏源码或误提交 `build`、`dist`；
-- 没有核对老师原始 15 类字段名单。
+- 课程字段位置、长度、标识值或随机值域规则与协议文件不一致。
 
 ---
 
@@ -709,20 +729,18 @@ Qt 5.9.7 项目采用传统 `SIGNAL`/`SLOT` 写法以兼容旧工具链。增加
 ## 12.1 当前分支
 
 ```text
-codex/complete-t007-delivery
+main
 ```
 
-## 12.2 当前项目提交链
+## 12.2 查看当前项目提交链
 
-| 提交 | 决策主题 |
-| --- | --- |
-| `beec07e` | 在发送前拒绝含糊或非法协议数据 |
-| `6b26702` | 让界面进度与已发送、已记录报文保持一致 |
-| `2c762ac` | 用真实 loopback 接收替代仅统计 socket 写入 |
-| `4e74703` | 固化 Qt 5.9.7 可复现构建、部署和冒烟检查 |
-| `0d22bab` | 为新读者提供检验、学习和复现路径 |
+提交哈希会随新增提交变化，不应把旧哈希抄死在说明书里。以仓库实际结果为准：
 
-本说明书建议作为新的文档专用提交，不与功能代码混合。
+```powershell
+git log --oneline --decorate -10
+```
+
+本轮建议拆成三次：协议解析与生成、任务汇总日志与界面、构建证据与说明文档。每次提交都应能说明“为什么改、改动边界和如何验证”。
 
 ## 12.3 每次提交的操作顺序
 
@@ -731,7 +749,9 @@ codex/complete-t007-delivery
 ```powershell
 git status --short -- .
 git diff -- .
-git add -- README.md docs/CITEL-T-007_完整项目说明书.md docs/CITEL-T-007_完整项目说明书.docx
+git add -- README.md
+git add -- docs/CITEL-T-007_完整项目说明书.md
+git add -- docs/CITEL-T-007_完整项目说明书_最终版.docx
 git diff --cached --check
 git diff --cached --stat
 git commit
@@ -781,7 +801,7 @@ git remote -v
 ```powershell
 $repoUrl = Read-Host '请输入远程仓库地址，例如 https://github.com/your-name/course-repository.git'
 git remote add origin $repoUrl
-git push -u origin codex/complete-t007-delivery
+git push -u origin main
 ```
 
 ---
@@ -790,13 +810,13 @@ git push -u origin codex/complete-t007-delivery
 
 ## 第 1 分钟：说明目标
 
-“这是一个基于 Qt 5.9.7 和 C++11 的 XML 协议 UDP 发生器。XML 决定字段结构，程序随机生成载荷，通过 UDP 发送并写入 SQLite，还可以查询日志和执行真实本机收包测试。”
+“这是一个基于 Qt 5.9.7 和 C++11 的 XML 协议 UDP 发生器。XML 决定字段结构，程序随机生成载荷，通过 UDP 发送，并在每次任务结束时把配置和结果汇总到 SQLite，还可以查询日志和执行真实本机收包测试。”
 
 展示 `data/sample_protocol.xml` 和主界面。
 
 ## 第 2 分钟：展示常规发送
 
-使用默认 `10 Hz、20 条、127.0.0.1、39001`，点击开始。说明进度与日志只在 UDP 写入成功后更新；SQLite 失败会停止并明确报告。
+使用默认 `10 Hz、20 条、127.0.0.1、39001`，点击开始。说明进度只统计 UDP 写入成功的报文；任务完成后日志表新增一条汇总，其中配置数量和实际总数均为 20。
 
 ## 第 3 分钟：展示持续发送和查询
 
@@ -808,7 +828,7 @@ git push -u origin codex/complete-t007-delivery
 
 ## 第 5 分钟：展示质量证据
 
-展示 PowerShell 中的 `16 passed, 0 failed`、`dist` 打包结果和 Git 提交历史。最后主动说明性能是本机样本，课程样例已兼容，但完整 15 类字段还要与老师原始清单核对。
+展示 PowerShell 中的 `17 passed, 0 failed`、`dist` 打包结果和 Git 提交历史。最后主动说明性能是本机样本；课程字段规则已经实现，最终 14 种类型映射按本轮约定暂不作为验收项。
 
 ---
 
@@ -838,7 +858,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 
 ## 14.5 This application failed to start because no Qt platform plugin could be initialized
 
-检查 `dist\platforms\qwindows.dll`。重新执行带 `-Package` 的完整脚本，不要只复制 exe。
+检查 `dist\platforms\qwindows.dll`。重新执行带 `-Package` 的完整脚本，不要只复制 exe。若脚本提示 `dist is currently in use`，先关闭正在运行的旧程序；脚本同时会在 `dist-candidate` 留下一份已通过冒烟测试的新包。
 
 ## 14.6 SQLite driver not loaded
 
@@ -885,7 +905,7 @@ git status --short -- .
 
 - [ ] 使用指定 Qt 5.9.7 MinGW 套件；
 - [ ] 完整脚本退出码为 0；
-- [ ] 16 passed，0 failed；
+- [ ] 17 passed，0 failed；
 - [ ] loopback 发送 2000、接收 2000；
 - [ ] 异常 0、丢包率 0.00%；
 - [ ] `dist` 打包完成；
@@ -897,8 +917,8 @@ git status --short -- .
 - [ ] 默认 20 条发送完成；
 - [ ] 数量留空可持续发送；
 - [ ] 停止按钮有效；
-- [ ] 预览、进度、日志数量符合预期；
-- [ ] 时间、协议、IP 查询有效；
+- [ ] 预览、进度、汇总日志中的实际总数符合预期；
+- [ ] 开始/结束时间段、协议、IP 查询有效；
 - [ ] 重启后日志仍存在；
 - [ ] 非法 XML、IP、端口、频率会被拒绝；
 - [ ] 保存必要截图。
@@ -909,7 +929,7 @@ git status --short -- .
 - [ ] 性能数字标注为本机样本；
 - [ ] 不把 UDP socket 写入描述成远端必然收到；
 - [ ] 已披露 AI 辅助内容；
-- [ ] 已用老师原题核对完整 15 类字段清单；
+- [ ] 已注明最终 14 种类型映射不是本轮验收阻塞项；
 - [ ] 已填写课程平台要求的姓名、学号或其他元数据。
 
 ## 15.4 Git
@@ -1002,7 +1022,7 @@ SQLite 持久化：通过 / 不通过
 
 独立电脑运行：通过 / 未测试 / 不通过
 
-老师原始 15 类字段已核对：是 / 否
+最终 14 种字段类型已核对：是 / 暂不验收
 
 GUI 截图已保存：是 / 否
 
@@ -1022,8 +1042,9 @@ __________________________________________________________________
 
 当前代码、自动测试、loopback 接收、SQLite、Windows 打包和无界面冒烟检查已经完成并实际验证。一个完全不了解项目的读者，可以按照本说明书安装或核对环境、获取分支、运行一键脚本、操作界面、编辑 XML、执行验收、理解源码结构并准备 Git 交付。
 
-正式提交前仍需项目负责人完成三项外部工作：
+正式提交前仍需项目负责人完成两项外部工作：
 
-1. 使用老师提供的完整原始题面核对最终 15 类字段名称；
-2. 人工执行 GUI 全流程并保存课程要求的截图；
-3. 配置远程仓库、推送分支，并在课程平台完成最终提交。
+1. 人工执行 GUI 全流程并保存课程要求的截图；
+2. 推送最新提交，并在课程平台完成最终提交。
+
+最终 14 种字段类型的精确映射按本轮约定暂不影响上述验收，可在教师给出完整清单后继续收敛。

@@ -41,6 +41,8 @@ New-Item -ItemType Directory -Path $appBuild, $testBuild -Force | Out-Null
 Push-Location $appBuild
 try {
     Invoke-NativeTool $qmake @('..\..\src\protocol_sender.pro')
+    # Always rebuild from source so stale object files cannot hide header/source drift.
+    Invoke-NativeTool $make @('clean')
     Invoke-NativeTool $make @('-j2')
 } finally {
     Pop-Location
@@ -49,6 +51,7 @@ try {
 Push-Location $testBuild
 try {
     Invoke-NativeTool $qmake @('..\..\tests\protocol_sender_tests.pro')
+    Invoke-NativeTool $make @('clean')
     Invoke-NativeTool $make @('-j2')
 } finally {
     Pop-Location
@@ -90,11 +93,21 @@ if ($Package) {
         }
     }
 
+    $packageDestination = $dist
+    $distExecutable = Join-Path $dist 'protocol_sender.exe'
+    $runningFromDist = Get-Process -Name 'protocol_sender' -ErrorAction SilentlyContinue |
+        Where-Object { $_.Path -and ([System.IO.Path]::GetFullPath($_.Path) -eq [System.IO.Path]::GetFullPath($distExecutable)) }
+    if ($runningFromDist) {
+        $packageDestination = Join-Path $projectRoot 'dist-candidate'
+        Write-Warning "dist is currently in use by protocol_sender.exe; writing the verified package to: $packageDestination"
+    }
+
+    New-Item -ItemType Directory -Path $packageDestination -Force | Out-Null
     Get-ChildItem -LiteralPath $staging -Force |
-        Copy-Item -Destination $dist -Recurse -Force
-    $packagedExecutable = Join-Path $dist 'protocol_sender.exe'
+        Copy-Item -Destination $packageDestination -Recurse -Force
+    $packagedExecutable = Join-Path $packageDestination 'protocol_sender.exe'
     Invoke-NativeTool $packagedExecutable @('--smoke-test')
-    Write-Output "Package ready: $dist"
+    Write-Output "Package ready: $packageDestination"
 }
 
 Write-Output 'Build and tests completed successfully.'

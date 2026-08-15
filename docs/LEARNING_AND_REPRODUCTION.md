@@ -11,7 +11,7 @@ git branch --show-current
 git status --short -- .
 ```
 
-项目应位于 `codex/complete-t007-delivery` 分支。上层课程仓库可能还有其他练习的未提交改动；它们不属于本项目，不影响下面的路径限定检验。
+当前交付位于 `main` 分支。执行 `git status --short` 时应没有未提交的项目文件。
 
 执行完整构建、测试、部署和冒烟检查：
 
@@ -28,10 +28,12 @@ C:\Qt\Qt5.9.7\Tools\mingw530_32\bin\mingw32-make.exe
 
 成功标准：
 
-- QtTest 末尾显示 `16 passed, 0 failed`；
+- QtTest 末尾显示 `17 passed, 0 failed`；
 - 2000 条 loopback 测试中，发送数和接收数均为 2000，异常报文为 0、丢包率为 0.00%；
 - 输出 `Package ready:` 和 `Build and tests completed successfully.`；
 - 打包程序的 `--smoke-test` 返回退出码 0。
+
+如果正式 `dist` 中的程序仍在运行，脚本会输出警告并把新包放入 `dist-candidate`，随后仍会在该目录完成冒烟测试。关闭旧程序后重新执行命令即可刷新 `dist`。
 
 生成物：
 
@@ -40,6 +42,7 @@ C:\Qt\Qt5.9.7\Tools\mingw530_32\bin\mingw32-make.exe
 | `build\app\release\protocol_sender.exe` | 开发构建 |
 | `build\tests\release\protocol_sender_tests.exe` | QtTest 测试程序 |
 | `dist\protocol_sender.exe` | 包含 Qt/MinGW 运行库的交付版本 |
+| `dist-candidate\protocol_sender.exe` | 仅在正式 `dist` 被运行中的程序占用时生成的已验证候选包 |
 | `%APPDATA%\protocol_sender\protocol_sender.db` | 运行后产生的 SQLite 日志库 |
 
 `build` 和 `dist` 都是可再生成目录，已经被 Git 忽略。
@@ -56,9 +59,9 @@ C:\Qt\Qt5.9.7\Tools\mingw530_32\bin\mingw32-make.exe
 
 1. 确认窗口启动后自动加载 `LoopbackDemo`；也可点“选择协议”加载 `data\sample_protocol.xml`。
 2. 点击“loopback 基线”，确认弹窗中的请求、写入和接收数量均为 2000，异常为 0，丢包率为 0.00%。这是端到端 UDP 接收检验。
-3. 保持默认参数 `10 Hz / 20 条 / 127.0.0.1 / 39001`，点击“开始发送”，确认进度到 20、预览区出现载荷、日志表出现 20 条记录。
+3. 保持默认参数 `10 Hz / 20 条 / 127.0.0.1 / 39001`，点击“开始发送”，确认进度到 20、预览区出现载荷、日志表新增 1 条汇总记录，并显示“配置数量 20、实际总数 20、状态 已完成”。
 4. 将“数量”留空，开始后观察持续发送，再点击“停止发送”，确认状态栏报告实际发送数量。
-5. 分别按协议 `LoopbackDemo`、IP `127.0.0.1` 或 ISO 日期片段查询日志。
+5. 用“开始时间”和“结束时间”限定时间段，再分别按协议 `LoopbackDemo`、IP `127.0.0.1` 或组合条件查询日志。
 6. 输入非法 IP、端口或频率，确认程序拒绝启动并说明原因。
 
 注意：普通“开始发送”能证明报文已成功写入本机 UDP socket 并写入 SQLite，但 UDP 本身不保证远端收到。项目中的“loopback 基线”和自动化测试才负责验证真实接收与丢包统计。
@@ -70,7 +73,7 @@ C:\Qt\Qt5.9.7\Tools\mingw530_32\bin\mingw32-make.exe
 1. `requirements\original-statement.md`：了解题目目标及仍需向老师核对的原始要求。
 2. `data\sample_protocol.xml`：观察协议名、字段类型、范围、固定值、模板、位提取和分组属性。
 3. `src\protocolparser.h/.cpp`：XML 如何变成 `ProtocolDefinition`，以及非法结构怎样被拒绝。
-4. `src\datagenerator.h/.cpp`：原有 15 类与课程 `IP` 类型怎样生成，旧格式如何替换模板，课程格式如何按 bit 布局打包。
+4. `src\datagenerator.h/.cpp`：现有兼容类型怎样生成，旧格式如何替换模板，课程格式如何按 bit 布局打包。
 5. `src\transmissionrepository.h/.cpp`：SQLite 表初始化、写入和组合查询。
 6. `src\udpsendcontroller.h/.cpp`：参数校验、定时调度、UDP 发送、失败停止、loopback 接收统计。
 7. `src\mainwindow.h/.cpp`：界面事件如何调用上述模块，以及进度、预览、检索和错误提示如何呈现。
@@ -82,7 +85,7 @@ C:\Qt\Qt5.9.7\Tools\mingw530_32\bin\mingw32-make.exe
 ```text
 XML -> ProtocolParser -> ProtocolDefinition -> DataGenerator -> UDP socket
                                                     |
-                                                    +-> SQLite 日志
+                                                    +-> 任务结束时写 SQLite 汇总日志
 
 loopback 基线: DataGenerator -> 本机 UDP 发送端 -> 本机 UDP 接收端 -> 丢包/吞吐统计
 ```
@@ -100,7 +103,7 @@ loopback 基线: DataGenerator -> 本机 UDP 发送端 -> 本机 UDP 接收端 -
 ```powershell
 git clone <课程仓库地址>
 cd <课程仓库>\projects\CITEL-T-007
-git switch codex/complete-t007-delivery
+git switch main
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1 -Package
 .\dist\protocol_sender.exe
 ```
@@ -123,10 +126,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 
 ## 6. 提交前最终清单
 
-- 自动化测试为 12/12；
+- QtTest 为 17 passed、0 failed；
 - 打包后冒烟检查退出码为 0；
 - 人工完成有限发送、持续发送、日志查询和非法输入检查；
 - 保存关键界面截图；
-- 用老师的原始题面再次核对完整 15 类数据类型；
+- 若老师提供最终名单，再核对并收敛 14 种字段类型；本轮不以此作为验收阻塞项；
 - 在项目根目录执行 `git status --short -- .`，没有遗漏的项目文件；
 - 阅读 `TEST_REPORT.md` 中的剩余风险，不把单机性能样本表述为跨机器保证。
