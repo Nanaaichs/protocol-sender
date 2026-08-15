@@ -58,7 +58,7 @@
 
 ## 1.4 当前已经验证的结果
 
-- QtTest：17 passed，0 failed，0 skipped；
+- QtTest：18 passed，0 failed，0 skipped；
 - loopback：请求 2000 条，写入 2000 条，接收 2000 条，异常 0 条，丢包率 0.00%；
 - `windeployqt` 打包成功；
 - 打包后的程序通过 `--smoke-test`，退出码为 0；
@@ -228,7 +228,7 @@ Qt 5.9 的 `windeployqt` 对中文路径处理不稳定，因此脚本先在纯�
 输出中应出现：
 
 ```text
-Totals: 17 passed, 0 failed, 0 skipped
+Totals: 18 passed, 0 failed, 0 skipped
 Package ready: ...\CITEL-T-007\dist
 Build and tests completed successfully.
 ```
@@ -555,9 +555,10 @@ DataGenerator
 | `controllerSendsAndLogs` | 有限发送、真实接收、进度及单条完成汇总一致 |
 | `controllerSendsPackedCourseDatagram` | 课程二进制报文经真实 UDP 收发且写入单条汇总 |
 | `controllerStopsContinuousRun` | 数量为空的持续发送可停止，并写入单条停止汇总 |
+| `continuousProgressStopsAnimating` | 持续发送停止后进度条退出滚动状态并显示实际发送数 |
 | `loopbackBenchmarkDeliversDatagrams` | 2000 条真实接收、序号、异常和丢包统计正确 |
 
-QtTest 还会统计初始化与清理阶段，因此当前最终总数显示为 17 passed。
+QtTest 还会统计初始化与清理阶段，因此当前最终总数显示为 18 passed。
 
 ## 9.2 完整自动验收命令
 
@@ -567,7 +568,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 
 通过条件：
 
-- 17 passed，0 failed；
+- 18 passed，0 failed；
 - 2000 条全部写入并全部接收；
 - 异常 0；
 - 丢包率 0.00%；
@@ -580,7 +581,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 2. 确认自动加载 `LoopbackDemo`。
 3. 点击“loopback 基线”，截图 2000/2000、异常 0、丢包 0.00%。
 4. 默认参数发送 20 条，截图进度、预览和日志表。
-5. 清空数量，持续发送数秒并停止，截图停止状态。
+5. 清空数量，持续发送数秒并停止，确认进度条停止滚动并显示实际发送数，截图停止状态。
 6. 输入开始/结束时间段，再分别按协议和 IP 查询，截图组合检索结果。
 7. 输入非法 IP，例如 `not-an-ip`，确认拒绝。
 8. 输入端口 0 或频率超过 1000，确认拒绝。
@@ -828,7 +829,7 @@ git push -u origin main
 
 ## 第 5 分钟：展示质量证据
 
-展示 PowerShell 中的 `17 passed, 0 failed`、`dist` 打包结果和 Git 提交历史。最后主动说明性能是本机样本；课程字段规则已经实现，最终 14 种类型映射按本轮约定暂不作为验收项。
+展示 PowerShell 中的 `18 passed, 0 failed`、`dist` 打包结果和 Git 提交历史。最后主动说明性能是本机样本；课程字段规则已经实现，最终 14 种类型映射按本轮约定暂不作为验收项。
 
 ---
 
@@ -905,7 +906,7 @@ git status --short -- .
 
 - [ ] 使用指定 Qt 5.9.7 MinGW 套件；
 - [ ] 完整脚本退出码为 0；
-- [ ] 17 passed，0 failed；
+- [ ] 18 passed，0 failed；
 - [ ] loopback 发送 2000、接收 2000；
 - [ ] 异常 0、丢包率 0.00%；
 - [ ] `dist` 打包完成；

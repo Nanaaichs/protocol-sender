@@ -577,6 +577,10 @@ private:
 
     QProgressBar *m_progressBar;
 
+    // 持续发送没有预设总数；保存最近一次已发送数量，便于任务结束后
+    // 将进度条从 busy 动画切换为静态的“已发送 N 条”状态。
+    int m_lastProgressSentCount;
+
     // Qt 进度条。
     //
     // 用于显示：

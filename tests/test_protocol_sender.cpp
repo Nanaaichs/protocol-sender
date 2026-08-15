@@ -3,10 +3,13 @@
 #include <QDir>
 #include <QDebug>
 #include <QFile>
+#include <QProgressBar>
 #include <QSignalSpy>
+#include <QStandardPaths>
 #include <QUdpSocket>
 
 #include "../src/datagenerator.h"
+#include "../src/mainwindow.h"
 #include "../src/protocolparser.h"
 #include "../src/transmissionrepository.h"
 #include "../src/udpsendcontroller.h"
@@ -51,6 +54,7 @@ private slots:
     void controllerSendsAndLogs();
     void controllerSendsPackedCourseDatagram();
     void controllerStopsContinuousRun();
+    void continuousProgressStopsAnimating();
     void loopbackBenchmarkDeliversDatagrams();
 };
 
@@ -480,6 +484,30 @@ void ProtocolSenderTests::controllerStopsContinuousRun()
     QCOMPARE(runs.first().status, QString("stopped"));
 }
 
+void ProtocolSenderTests::continuousProgressStopsAnimating()
+{
+    QStandardPaths::setTestModeEnabled(true);
+    MainWindow window;
+    QProgressBar *progressBar = window.findChild<QProgressBar *>();
+    QVERIFY(progressBar);
+
+    QVERIFY(QMetaObject::invokeMethod(&window,
+                                      "updateProgress",
+                                      Qt::DirectConnection,
+                                      Q_ARG(int, 7),
+                                      Q_ARG(int, 0)));
+    QCOMPARE(progressBar->maximum(), 0);
+
+    QVERIFY(QMetaObject::invokeMethod(&window,
+                                      "finishRun",
+                                      Qt::DirectConnection,
+                                      Q_ARG(QString, QString::fromUtf8("发送已停止"))));
+    QCOMPARE(progressBar->minimum(), 0);
+    QCOMPARE(progressBar->maximum(), 1);
+    QCOMPARE(progressBar->value(), 1);
+    QVERIFY(progressBar->format().contains(QString::fromUtf8("已发送 7 条")));
+}
+
 void ProtocolSenderTests::loopbackBenchmarkDeliversDatagrams()
 {
     const QString dbPath = QDir::temp().absoluteFilePath("citel_t007_benchmark.db");
@@ -500,6 +528,6 @@ void ProtocolSenderTests::loopbackBenchmarkDeliversDatagrams()
     qInfo().noquote() << result.summary();
 }
 
-QTEST_GUILESS_MAIN(ProtocolSenderTests)
+QTEST_MAIN(ProtocolSenderTests)
 
 #include "test_protocol_sender.moc"

@@ -28,7 +28,7 @@ C:\Qt\Qt5.9.7\Tools\mingw530_32\bin\mingw32-make.exe
 
 成功标准：
 
-- QtTest 末尾显示 `17 passed, 0 failed`；
+- QtTest 末尾显示 `18 passed, 0 failed`；
 - 2000 条 loopback 测试中，发送数和接收数均为 2000，异常报文为 0、丢包率为 0.00%；
 - 输出 `Package ready:` 和 `Build and tests completed successfully.`；
 - 打包程序的 `--smoke-test` 返回退出码 0。
@@ -60,7 +60,7 @@ C:\Qt\Qt5.9.7\Tools\mingw530_32\bin\mingw32-make.exe
 1. 确认窗口启动后自动加载 `LoopbackDemo`；也可点“选择协议”加载 `data\sample_protocol.xml`。
 2. 点击“loopback 基线”，确认弹窗中的请求、写入和接收数量均为 2000，异常为 0，丢包率为 0.00%。这是端到端 UDP 接收检验。
 3. 保持默认参数 `10 Hz / 20 条 / 127.0.0.1 / 39001`，点击“开始发送”，确认进度到 20、预览区出现载荷、日志表新增 1 条汇总记录，并显示“配置数量 20、实际总数 20、状态 已完成”。
-4. 将“数量”留空，开始后观察持续发送，再点击“停止发送”，确认状态栏报告实际发送数量。
+4. 将“数量”留空，开始后观察持续发送，再点击“停止发送”，确认进度条停止滚动并显示实际发送数量，状态栏报告任务已停止。
 5. 用“开始时间”和“结束时间”限定时间段，再分别按协议 `LoopbackDemo`、IP `127.0.0.1` 或组合条件查询日志。
 6. 输入非法 IP、端口或频率，确认程序拒绝启动并说明原因。
 
@@ -126,7 +126,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 
 ## 6. 提交前最终清单
 
-- QtTest 为 17 passed、0 failed；
+- QtTest 为 18 passed、0 failed；
 - 打包后冒烟检查退出码为 0；
 - 人工完成有限发送、持续发送、日志查询和非法输入检查；
 - 保存关键界面截图；

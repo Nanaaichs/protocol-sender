@@ -76,7 +76,8 @@ MainWindow::MainWindow(QWidget *parent)
       //
       // 也就是说真正的 QLabel 对象稍后才创建。
       ,
-      m_statusLabel(0)
+      m_statusLabel(0),
+      m_lastProgressSentCount(0)
 {
     // 创建整个窗口界面。
     //
@@ -369,6 +370,8 @@ void MainWindow::startSending()
         count <= 0 ? 0 : count);
 
     // 发送任务开始时进度清零。
+    m_lastProgressSentCount = 0;
+    m_progressBar->setFormat("%p%");
     m_progressBar->setValue(0);
 
     // 状态文本更新为“发送中...”。
@@ -513,6 +516,8 @@ void MainWindow::updateProgress(
     int sentCount,
     int totalCount)
 {
+    m_lastProgressSentCount = sentCount;
+
     // 如果 totalCount > 0，
     // 表示是“有限数量发送”。
     if (totalCount > 0)
@@ -559,6 +564,16 @@ void MainWindow::appendPayload(
 void MainWindow::finishRun(
     const QString &message)
 {
+    // 持续发送时 maximum == 0 代表 Qt 的 busy 动画。控制器停止后必须
+    // 退出该模式，否则即使 UDP 定时器已经停止，进度条仍会继续滚动。
+    if (m_progressBar->maximum() == 0)
+    {
+        m_progressBar->setRange(0, 1);
+        m_progressBar->setValue(1);
+        m_progressBar->setFormat(
+            QString::fromUtf8("已发送 %1 条").arg(m_lastProgressSentCount));
+    }
+
     // 显示 Controller 给出的结束信息。
     //
     // 例如：

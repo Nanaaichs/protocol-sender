@@ -123,13 +123,13 @@ SQLite 表：`transmission_runs`
 
 ## 8. 测试证据与限制
 
-测试覆盖旧/课程两种 XML、课程字段契约、16 种兼容类型生成、课程 4/12 字节二进制布局、真实 UDP 收包与 HEX 预览、SQLite 任务汇总和时间段查询、发送参数校验、有限/持续发送以及 loopback 吞吐和丢包统计。
+测试覆盖旧/课程两种 XML、课程字段契约、16 种兼容类型生成、课程 4/12 字节二进制布局、真实 UDP 收包与 HEX 预览、SQLite 任务汇总和时间段查询、发送参数校验、有限/持续发送、持续发送停止后的进度条状态，以及 loopback 吞吐和丢包统计。
 
 实际验证结果：
 
 - 应用成功编译并链接为 `protocol_sender.exe`；
 - 测试成功编译并链接为 `protocol_sender_tests.exe`；
-- QtTest 实际运行：17 passed，0 failed；
+- QtTest 实际运行：18 passed，0 failed；
 - `windeployqt` 成功生成包含 Qt 平台插件和 SQLite 驱动的 `dist`；
 - 打包程序无交互冒烟启动退出码为 0。
 

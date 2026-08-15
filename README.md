@@ -57,7 +57,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_and_test.ps1
 ## 当前验证结果
 
 - 应用构建成功；
-- 测试构建并实际运行成功：17 passed，0 failed；
+- 测试构建并实际运行成功：18 passed，0 failed；
 - 2000 条 localhost 基准：写入 2000、接收 2000、异常 0、丢包率 0.00%；
 - 本轮多次构建的端到端样本约 37,500–81,325 Hz，均为 2000/2000、丢包 0.00%；吞吐会随机器负载波动，不是跨机器保证值；
 - `dist` 已确认包含 Qt 平台插件、SQLite 驱动和 MinGW 运行库；
