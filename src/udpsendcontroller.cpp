@@ -76,6 +76,7 @@ UdpSendController::UdpSendController(TransmissionRepository *repository, QObject
     , m_frequencyHz(1)
     , m_totalCount(0)
     , m_sentCount(0)
+    , m_running(false)
 {
     connect(&m_timer, SIGNAL(timeout()), this, SLOT(sendOnce()));
     m_timer.setSingleShot(true);
@@ -89,7 +90,7 @@ void UdpSendController::setProtocol(const ProtocolDefinition &definition)
 
 bool UdpSendController::start(const QString &ip, quint16 port, int frequencyHz, int count)
 {
-    if (m_timer.isActive()) {
+    if (m_running) {
         m_lastError = QString::fromUtf8("发送任务正在运行");
         return false;
     }
@@ -126,6 +127,8 @@ bool UdpSendController::start(const QString &ip, quint16 port, int frequencyHz, 
     m_frequencyHz = frequencyHz;
     m_totalCount = count;
     m_sentCount = 0;
+    m_startTime = QDateTime::currentDateTime();
+    m_running = true;
     m_lastError.clear();
     m_runClock.start();
     m_timer.start(0);
@@ -134,15 +137,14 @@ bool UdpSendController::start(const QString &ip, quint16 port, int frequencyHz, 
 
 void UdpSendController::stop()
 {
-    if (m_timer.isActive()) {
-        m_timer.stop();
-        emit runFinished(QString::fromUtf8("发送已停止，共发送 %1 条").arg(m_sentCount));
+    if (m_running) {
+        finishRun("stopped", QString::fromUtf8("发送已停止，共发送 %1 条").arg(m_sentCount));
     }
 }
 
 bool UdpSendController::isRunning() const
 {
-    return m_timer.isActive();
+    return m_running;
 }
 
 QString UdpSendController::lastError() const
@@ -215,6 +217,9 @@ LoopbackBenchmarkResult UdpSendController::runLoopbackBenchmark(const ProtocolDe
 
 void UdpSendController::sendOnce()
 {
+    if (!m_running) {
+        return;
+    }
     if (m_definition.fields.isEmpty()) {
         failRun(QString::fromUtf8("协议定义为空"));
         return;
@@ -229,26 +234,11 @@ void UdpSendController::sendOnce()
     }
     ++m_sentCount;
 
-    TransmissionLogEntry entry;
-    entry.createdAt = QDateTime::currentDateTime().toString(Qt::ISODate);
-    entry.protocolName = m_definition.name;
-    entry.ip = m_ip;
-    entry.port = m_port;
-    entry.sequence = m_sentCount;
-    entry.payload = payloadText;
-    if (!m_repository->insert(entry)) {
-        emit messageGenerated(payloadText);
-        emit progressChanged(m_sentCount, m_totalCount);
-        failRun(QString::fromUtf8("UDP 已发送，但 SQLite 日志写入失败：%1").arg(m_repository->lastError()));
-        return;
-    }
-
     emit messageGenerated(payloadText);
     emit progressChanged(m_sentCount, m_totalCount);
 
     if (m_totalCount > 0 && m_sentCount >= m_totalCount) {
-        m_timer.stop();
-        emit runFinished(QString::fromUtf8("发送完成，共 %1 条").arg(m_sentCount));
+        finishRun("completed", QString::fromUtf8("发送完成，共 %1 条").arg(m_sentCount));
         return;
     }
 
@@ -257,13 +247,49 @@ void UdpSendController::sendOnce()
 
 void UdpSendController::failRun(const QString &error)
 {
+    finishRun("failed",
+              QString::fromUtf8("发送失败：%1；已成功发送 %2 条").arg(error).arg(m_sentCount),
+              error);
+}
+
+void UdpSendController::finishRun(const QString &status,
+                                  const QString &message,
+                                  const QString &error)
+{
+    if (!m_running) {
+        return;
+    }
+
     m_timer.stop();
+    TransmissionRunEntry entry;
+    entry.protocolName = m_definition.name;
+    entry.requestedCount = m_totalCount;
+    entry.totalCount = m_sentCount;
+    entry.frequencyHz = m_frequencyHz;
+    entry.startTime = m_startTime.toString("yyyy-MM-dd HH:mm:ss.zzz");
+    entry.endTime = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss.zzz");
+    entry.targetIp = m_ip;
+    entry.targetPort = m_port;
+    entry.status = status;
+    entry.errorMessage = error;
+
+    m_running = false;
+    if (!m_repository->insertRun(entry)) {
+        m_lastError = QString::fromUtf8("发送任务结束，但 SQLite 汇总日志写入失败：%1")
+            .arg(m_repository->lastError());
+        emit runFinished(m_lastError);
+        return;
+    }
+
     m_lastError = error;
-    emit runFinished(QString::fromUtf8("发送失败：%1；已成功发送 %2 条").arg(error).arg(m_sentCount));
+    emit runFinished(message);
 }
 
 void UdpSendController::scheduleNext()
 {
+    if (!m_running) {
+        return;
+    }
     const qint64 targetNs = (static_cast<qint64>(m_sentCount) * 1000000000LL
                              + m_frequencyHz - 1) / m_frequencyHz;
     const qint64 remainingNs = targetNs - m_runClock.nsecsElapsed();

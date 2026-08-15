@@ -2,6 +2,7 @@
 
 // ---------------- Qt 核心与基础工具 ----------------
 #include <QCoreApplication> // Qt 核心应用支持，这份代码中实际上没有直接使用
+#include <QDateTime>
 #include <QDir>             // 路径、目录处理
 #include <QFileDialog>      // 文件选择对话框
 #include <QFormLayout>      // 表单布局：一行通常是“标签 + 输入控件”
@@ -399,7 +400,29 @@ void MainWindow::stopSending()
 // ============================================================
 void MainWindow::searchLogs()
 {
-    // 调用数据库 repository 的 search()。
+    const QString fromText = m_fromTimeFilterEdit->text().trimmed();
+    const QString toText = m_toTimeFilterEdit->text().trimmed();
+    const QString timeFormat = "yyyy-MM-dd HH:mm:ss";
+    const QDateTime fromDateTime = QDateTime::fromString(fromText, timeFormat);
+    const QDateTime toDateTime = QDateTime::fromString(toText, timeFormat);
+    if ((!fromText.isEmpty() && !fromDateTime.isValid())
+        || (!toText.isEmpty() && !toDateTime.isValid())
+        || (fromDateTime.isValid() && toDateTime.isValid() && fromDateTime > toDateTime))
+    {
+        QMessageBox::warning(this,
+                             QString::fromUtf8("时间范围无效"),
+                             QString::fromUtf8("请使用 yyyy-MM-dd HH:mm:ss；开始时间不能晚于结束时间。"));
+        return;
+    }
+
+    const QString normalizedFrom = fromDateTime.isValid()
+        ? fromDateTime.toString(timeFormat) + ".000"
+        : QString();
+    const QString normalizedTo = toDateTime.isValid()
+        ? toDateTime.toString(timeFormat) + ".999"
+        : QString();
+
+    // 查询与指定时间段相交的发送任务，协议和 IP 使用模糊匹配。
     //
     // 查询条件：
     //
@@ -409,13 +432,14 @@ void MainWindow::searchLogs()
     //
     // search() 返回：
     //
-    // QList<TransmissionLogEntry>
+    // QList<TransmissionRunEntry>
     //
     // 然后直接交给 renderLogs()，
     // 将查询结果显示到表格。
     renderLogs(
-        m_repository.search(
-            m_timeFilterEdit->text().trimmed(),
+        m_repository.searchRuns(
+            normalizedFrom,
+            normalizedTo,
             m_protocolFilterEdit->text().trimmed(),
             m_ipFilterEdit->text().trimmed()));
 }
@@ -802,9 +826,14 @@ void MainWindow::buildUi()
     QFormLayout *queryForm =
         new QFormLayout();
 
-    // 时间搜索输入框。
-    m_timeFilterEdit =
+    // 时间格式采用可排序的 yyyy-MM-dd HH:mm:ss；留空表示不限制。
+    m_fromTimeFilterEdit =
         new QLineEdit(this);
+    m_fromTimeFilterEdit->setPlaceholderText("2026-08-15 09:00:00");
+
+    m_toTimeFilterEdit =
+        new QLineEdit(this);
+    m_toTimeFilterEdit->setPlaceholderText("2026-08-15 18:00:00");
 
     // 协议搜索输入框。
     m_protocolFilterEdit =
@@ -815,8 +844,12 @@ void MainWindow::buildUi()
         new QLineEdit(this);
 
     queryForm->addRow(
-        QString::fromUtf8("时间检索"),
-        m_timeFilterEdit);
+        QString::fromUtf8("开始时间(可空)"),
+        m_fromTimeFilterEdit);
+
+    queryForm->addRow(
+        QString::fromUtf8("结束时间(可空)"),
+        m_toTimeFilterEdit);
 
     queryForm->addRow(
         QString::fromUtf8("协议检索"),
@@ -853,8 +886,8 @@ void MainWindow::buildUi()
     m_logTable =
         new QTableWidget(this);
 
-    // 一共 6 列。
-    m_logTable->setColumnCount(6);
+    // 一行对应一次发送任务汇总。
+    m_logTable->setColumnCount(10);
 
     // 设置表头。
     //
@@ -865,12 +898,16 @@ void MainWindow::buildUi()
     // 是 Qt 中很常见的 QStringList 构造方式。
     m_logTable->setHorizontalHeaderLabels(
         QStringList()
-        << QString::fromUtf8("时间")
+        << QString::fromUtf8("开始时间")
+        << QString::fromUtf8("结束时间")
         << QString::fromUtf8("协议")
+        << QString::fromUtf8("配置数量")
+        << QString::fromUtf8("实际总数")
+        << QString::fromUtf8("频率(Hz)")
         << "IP"
         << QString::fromUtf8("端口")
-        << QString::fromUtf8("序号")
-        << QString::fromUtf8("载荷"));
+        << QString::fromUtf8("状态")
+        << QString::fromUtf8("错误信息"));
 
     // Stretch：
     //
@@ -989,7 +1026,7 @@ bool MainWindow::loadProtocol(
 // entries：数据库查询得到的一组日志记录。
 // ============================================================
 void MainWindow::renderLogs(
-    const QList<TransmissionLogEntry> &entries)
+    const QList<TransmissionRunEntry> &entries)
 {
     // 设置表格行数。
     //
@@ -1006,7 +1043,7 @@ void MainWindow::renderLogs(
         // 获取当前行对应的一条日志记录。
         //
         // 使用 const 引用可以避免不必要的数据复制。
-        const TransmissionLogEntry &entry =
+        const TransmissionRunEntry &entry =
             entries.at(row);
 
         // 第 0 列：发送时间。
@@ -1014,47 +1051,49 @@ void MainWindow::renderLogs(
             row,
             0,
             new QTableWidgetItem(
-                entry.createdAt));
+                entry.startTime));
 
-        // 第 1 列：协议名称。
         m_logTable->setItem(
             row,
             1,
-            new QTableWidgetItem(
-                entry.protocolName));
+            new QTableWidgetItem(entry.endTime));
 
-        // 第 2 列：目标 IP。
+        // 第 2 列：协议名称。
         m_logTable->setItem(
             row,
             2,
             new QTableWidgetItem(
-                entry.ip));
+                entry.protocolName));
 
-        // 第 3 列：目标端口。
+        m_logTable->setItem(row, 3, new QTableWidgetItem(
+            entry.requestedCount == 0 ? QString::fromUtf8("持续") : QString::number(entry.requestedCount)));
+        m_logTable->setItem(row, 4, new QTableWidgetItem(QString::number(entry.totalCount)));
+        m_logTable->setItem(row, 5, new QTableWidgetItem(QString::number(entry.frequencyHz)));
+
+        // 第 6 列：目标 IP。
+        m_logTable->setItem(
+            row,
+            6,
+            new QTableWidgetItem(
+                entry.targetIp));
+
+        // 第 7 列：目标端口。
         //
         // entry.port 是整数，
         // QTableWidgetItem 这里需要字符串，
         // 所以使用 QString::number() 转换。
         m_logTable->setItem(
             row,
-            3,
+            7,
             new QTableWidgetItem(
                 QString::number(
-                    entry.port)));
+                    entry.targetPort)));
 
-        // 第 4 列：发送序号。
-        m_logTable->setItem(
-            row,
-            4,
-            new QTableWidgetItem(
-                QString::number(
-                    entry.sequence)));
-
-        // 第 5 列：实际发送载荷。
-        m_logTable->setItem(
-            row,
-            5,
-            new QTableWidgetItem(
-                entry.payload));
+        QString statusText = entry.status;
+        if (entry.status == "completed") statusText = QString::fromUtf8("完成");
+        else if (entry.status == "stopped") statusText = QString::fromUtf8("已停止");
+        else if (entry.status == "failed") statusText = QString::fromUtf8("失败");
+        m_logTable->setItem(row, 8, new QTableWidgetItem(statusText));
+        m_logTable->setItem(row, 9, new QTableWidgetItem(entry.errorMessage));
     }
 }

@@ -40,6 +40,7 @@ private slots:
     void parseProtocol();
     void parseCourseProtocolExamples();
     void rejectInvalidPackedLayout();
+    void enforceCourseFieldContract();
     void rejectInvalidProtocol();
     void generateAllSupportedTypes();
     void generatePackedCourseDatagrams();
@@ -140,6 +141,41 @@ void ProtocolSenderTests::rejectInvalidPackedLayout()
     QVERIFY2(parser.load(xmlPath), qPrintable(parser.lastError()));
     DataGenerator generator;
     QCOMPARE(generator.generate(parser.definition()).datagram, QByteArray::fromHex("BBAA"));
+}
+
+void ProtocolSenderTests::enforceCourseFieldContract()
+{
+    const QString xmlPath = QDir::temp().absoluteFilePath("citel_t007_field_contract.xml");
+    QFile file(xmlPath);
+    ProtocolParser parser;
+
+    QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+    file.write("<protocol><field><fieldName>key</fieldName><isSelected>true</isSelected>"
+               "<datatype>HEX</datatype><data/><bitIndex>0</bitIndex><length>8</length>"
+               "<loopEnd>8</loopEnd><minimum>00</minimum><maximum>FF</maximum>"
+               "<precision>0</precision><isKey>true</isKey></field></protocol>");
+    file.close();
+    QVERIFY(!parser.load(xmlPath));
+    QVERIFY(parser.lastError().contains("isKey") || parser.lastError().contains("data"));
+
+    QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text));
+    file.write("<protocol><field><fieldName>decimal</fieldName><isSelected>true</isSelected>"
+               "<datatype>DEC</datatype><data/><bitIndex>0</bitIndex><length>7</length>"
+               "<loopEnd>7</loopEnd><minimum>0</minimum><maximum>127</maximum>"
+               "<precision>0</precision><isKey>false</isKey></field></protocol>");
+    file.close();
+    QVERIFY(!parser.load(xmlPath));
+    QVERIFY(parser.lastError().contains("length"));
+
+    QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text));
+    file.write("<protocol><field><fieldName>float64</fieldName><isSelected>false</isSelected>"
+               "<datatype>FLT</datatype><data>1.5</data><bitIndex>0</bitIndex><length>64</length>"
+               "<loopEnd>64</loopEnd><minimum>0</minimum><maximum>2</maximum>"
+               "<precision>2</precision><isKey>true</isKey></field></protocol>");
+    file.close();
+    QVERIFY2(parser.load(xmlPath), qPrintable(parser.lastError()));
+    DataGenerator generator;
+    QCOMPARE(generator.generate(parser.definition()).datagram.size(), 8);
 }
 
 void ProtocolSenderTests::rejectInvalidProtocol()
@@ -311,17 +347,25 @@ void ProtocolSenderTests::repositoryQuery()
     TransmissionRepository repository(dbPath, "protocol_sender_tests_repo");
     QVERIFY(repository.isOpen());
 
-    TransmissionLogEntry entry;
-    entry.createdAt = "2026-07-29T10:00:00";
+    TransmissionRunEntry entry;
     entry.protocolName = "LoopbackDemo";
-    entry.ip = "127.0.0.1";
-    entry.port = 39001;
-    entry.sequence = 1;
-    entry.payload = "device_id=1";
-    QVERIFY(repository.insert(entry));
+    entry.requestedCount = 20;
+    entry.totalCount = 20;
+    entry.frequencyHz = 10;
+    entry.startTime = "2026-07-29 10:00:00.000";
+    entry.endTime = "2026-07-29 10:00:02.000";
+    entry.targetIp = "127.0.0.1";
+    entry.targetPort = 39001;
+    entry.status = "completed";
+    QVERIFY2(repository.insertRun(entry), qPrintable(repository.lastError()));
 
-    const QList<TransmissionLogEntry> entries = repository.search("2026-07-29", "Loopback", "127.0.0.1");
+    const QList<TransmissionRunEntry> entries = repository.searchRuns(
+        "2026-07-29 09:59:00", "2026-07-29 10:01:00", "Loop", "127.0");
     QCOMPARE(entries.size(), 1);
+    QCOMPARE(entries.first().totalCount, 20);
+    QCOMPARE(entries.first().frequencyHz, 10);
+    QCOMPARE(repository.searchRuns("2026-07-29 11:00:00", "2026-07-29 12:00:00",
+                                   QString(), QString()).size(), 0);
 }
 
 void ProtocolSenderTests::controllerRejectsInvalidParameters()
@@ -369,7 +413,13 @@ void ProtocolSenderTests::controllerSendsAndLogs()
         ++received;
     }
     QCOMPARE(received, 3);
-    QCOMPARE(repository.search(QString(), "ControllerDemo", "127.0.0.1").size(), 3);
+    const QList<TransmissionRunEntry> runs = repository.searchRuns(
+        QString(), QString(), "ControllerDemo", "127.0.0.1");
+    QCOMPARE(runs.size(), 1);
+    QCOMPARE(runs.first().requestedCount, 3);
+    QCOMPARE(runs.first().totalCount, 3);
+    QCOMPARE(runs.first().frequencyHz, 100);
+    QCOMPARE(runs.first().status, QString("completed"));
 }
 
 void ProtocolSenderTests::controllerSendsPackedCourseDatagram()
@@ -398,7 +448,10 @@ void ProtocolSenderTests::controllerSendsPackedCourseDatagram()
     QCOMPARE(datagram.left(2), QByteArray::fromHex("1234"));
     QCOMPARE(generated.count(), 1);
     QVERIFY(generated.first().first().toString().startsWith("HEX: 12 34"));
-    QCOMPARE(repository.search(QString(), parser.definition().name, "127.0.0.1").size(), 1);
+    const QList<TransmissionRunEntry> runs = repository.searchRuns(
+        QString(), QString(), parser.definition().name, "127.0.0.1");
+    QCOMPARE(runs.size(), 1);
+    QCOMPARE(runs.first().totalCount, 1);
 }
 
 void ProtocolSenderTests::controllerStopsContinuousRun()
@@ -419,6 +472,12 @@ void ProtocolSenderTests::controllerStopsContinuousRun()
     controller.stop();
     QCOMPARE(finished.count(), 1);
     QVERIFY(!controller.isRunning());
+    const QList<TransmissionRunEntry> runs = repository.searchRuns(
+        QString(), QString(), "ControllerDemo", "127.0.0.1");
+    QCOMPARE(runs.size(), 1);
+    QCOMPARE(runs.first().requestedCount, 0);
+    QVERIFY(runs.first().totalCount >= 3);
+    QCOMPARE(runs.first().status, QString("stopped"));
 }
 
 void ProtocolSenderTests::loopbackBenchmarkDeliversDatagrams()

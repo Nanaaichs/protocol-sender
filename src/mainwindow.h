@@ -210,7 +210,7 @@ private slots:
     // 查询历史发送日志。
     //
     // 通常会读取下面这些过滤条件：
-    //     m_timeFilterEdit
+    //     m_fromTimeFilterEdit / m_toTimeFilterEdit
     //     m_protocolFilterEdit
     //     m_ipFilterEdit
     //
@@ -377,13 +377,13 @@ private:
     // 即 ProtocolParser。
 
 
-    void renderLogs(const QList<TransmissionLogEntry> &entries);
+    void renderLogs(const QList<TransmissionRunEntry> &entries);
 
     // 把数据库查询得到的日志显示在 GUI 表格中。
     //
     // entries：
     //
-    //     QList<TransmissionLogEntry>
+    //     QList<TransmissionRunEntry>
     //
     // 可以理解成：
     //
@@ -614,7 +614,8 @@ private:
     // 第五组：日志筛选条件
     // ========================================================
 
-    QLineEdit *m_timeFilterEdit;
+    QLineEdit *m_fromTimeFilterEdit;
+    QLineEdit *m_toTimeFilterEdit;
 
     // 按时间筛选发送日志的输入框。
 
