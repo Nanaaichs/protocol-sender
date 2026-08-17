@@ -3,21 +3,21 @@
 // ---------------- Qt 核心与基础工具 ----------------
 #include <QCoreApplication> // Qt 核心应用支持，这份代码中实际上没有直接使用
 #include <QDateTime>
-#include <QDir>             // 路径、目录处理
-#include <QFileDialog>      // 文件选择对话框
-#include <QFormLayout>      // 表单布局：一行通常是“标签 + 输入控件”
-#include <QHeaderView>      // 用于控制表格表头及列宽
-#include <QIntValidator>    // 限制 QLineEdit 只能输入指定范围内的整数
-#include <QLabel>           // 文本标签
-#include <QLineEdit>        // 单行文本输入框
-#include <QMessageBox>      // 消息提示框，例如 warning、information
-#include <QProgressBar>     // 进度条
-#include <QPushButton>      // 按钮
-#include <QStandardPaths>   // 获取系统标准路径，例如应用程序数据目录
-#include <QTableWidget>     // 表格控件
-#include <QTextEdit>        // 多行文本显示/编辑控件
-#include <QTextDocument>    // QTextEdit 内部对应的文本对象
-#include <QVBoxLayout>      // 垂直布局
+#include <QDir>           // 路径、目录处理
+#include <QFileDialog>    // 文件选择对话框
+#include <QFormLayout>    // 表单布局：一行通常是“标签 + 输入控件”
+#include <QHeaderView>    // 用于控制表格表头及列宽
+#include <QIntValidator>  // 限制 QLineEdit 只能输入指定范围内的整数
+#include <QLabel>         // 文本标签
+#include <QLineEdit>      // 单行文本输入框
+#include <QMessageBox>    // 消息提示框，例如 warning、information
+#include <QProgressBar>   // 进度条
+#include <QPushButton>    // 按钮
+#include <QStandardPaths> // 获取系统标准路径，例如应用程序数据目录
+#include <QTableWidget>   // 表格控件
+#include <QTextEdit>      // 多行文本显示/编辑控件
+#include <QTextDocument>  // QTextEdit 内部对应的文本对象
+#include <QVBoxLayout>    // 垂直布局
 
 // ============================================================
 // MainWindow 构造函数
@@ -408,9 +408,7 @@ void MainWindow::searchLogs()
     const QString timeFormat = "yyyy-MM-dd HH:mm:ss";
     const QDateTime fromDateTime = QDateTime::fromString(fromText, timeFormat);
     const QDateTime toDateTime = QDateTime::fromString(toText, timeFormat);
-    if ((!fromText.isEmpty() && !fromDateTime.isValid())
-        || (!toText.isEmpty() && !toDateTime.isValid())
-        || (fromDateTime.isValid() && toDateTime.isValid() && fromDateTime > toDateTime))
+    if ((!fromText.isEmpty() && !fromDateTime.isValid()) || (!toText.isEmpty() && !toDateTime.isValid()) || (fromDateTime.isValid() && toDateTime.isValid() && fromDateTime > toDateTime))
     {
         QMessageBox::warning(this,
                              QString::fromUtf8("时间范围无效"),
@@ -419,11 +417,11 @@ void MainWindow::searchLogs()
     }
 
     const QString normalizedFrom = fromDateTime.isValid()
-        ? fromDateTime.toString(timeFormat) + ".000"
-        : QString();
+                                       ? fromDateTime.toString(timeFormat) + ".000"
+                                       : QString();
     const QString normalizedTo = toDateTime.isValid()
-        ? toDateTime.toString(timeFormat) + ".999"
-        : QString();
+                                     ? toDateTime.toString(timeFormat) + ".999"
+                                     : QString();
 
     // 查询与指定时间段相交的发送任务，协议和 IP 使用模糊匹配。
     //
@@ -1080,8 +1078,7 @@ void MainWindow::renderLogs(
             new QTableWidgetItem(
                 entry.protocolName));
 
-        m_logTable->setItem(row, 3, new QTableWidgetItem(
-            entry.requestedCount == 0 ? QString::fromUtf8("持续") : QString::number(entry.requestedCount)));
+        m_logTable->setItem(row, 3, new QTableWidgetItem(entry.requestedCount == 0 ? QString::fromUtf8("持续") : QString::number(entry.requestedCount)));
         m_logTable->setItem(row, 4, new QTableWidgetItem(QString::number(entry.totalCount)));
         m_logTable->setItem(row, 5, new QTableWidgetItem(QString::number(entry.frequencyHz)));
 
@@ -1105,9 +1102,12 @@ void MainWindow::renderLogs(
                     entry.targetPort)));
 
         QString statusText = entry.status;
-        if (entry.status == "completed") statusText = QString::fromUtf8("完成");
-        else if (entry.status == "stopped") statusText = QString::fromUtf8("已停止");
-        else if (entry.status == "failed") statusText = QString::fromUtf8("失败");
+        if (entry.status == "completed")
+            statusText = QString::fromUtf8("完成");
+        else if (entry.status == "stopped")
+            statusText = QString::fromUtf8("已停止");
+        else if (entry.status == "failed")
+            statusText = QString::fromUtf8("失败");
         m_logTable->setItem(row, 8, new QTableWidgetItem(statusText));
         m_logTable->setItem(row, 9, new QTableWidgetItem(entry.errorMessage));
     }
